@@ -1,3 +1,5 @@
+import { expansionBlueprints } from "./expansionBlueprints.js";
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
@@ -47,6 +49,7 @@ const inputMap = {
   forge: ["m", "padLT"],
   courier: ["n", "padRT"],
   quest: ["q", "padStart"],
+  roadmap: ["r"],
 };
 
 const palette = {
@@ -319,7 +322,7 @@ function makeWorld(seed = Date.now() >>> 0) {
     time: { day: 1, minute: 8 * 60 },
     weather: "Clear",
     branch: "Undeclared",
-    flags: {},
+    flags: { activeBlueprint: 1, completedBlueprintStages: [] },
     log: ["Welcome to DBH RPG."],
     completed: new Set(),
     activeObjective: 0,
@@ -437,6 +440,7 @@ document.getElementById("skillsBtn").addEventListener("click", showSkills);
 document.getElementById("inventoryBtn").addEventListener("click", showInventory);
 document.getElementById("figurinesBtn").addEventListener("click", () => startFigurineBattle("Toma"));
 document.getElementById("questBtn").addEventListener("click", showQuestLog);
+document.getElementById("blueprintsBtn").addEventListener("click", showExpansionBlueprints);
 
 showCharacterCreator();
 requestAnimationFrame(loop);
@@ -523,6 +527,7 @@ function updateExploration(dt) {
   if (actionPressed("forge")) startAuraForge();
   if (actionPressed("courier")) startSkyCourier();
   if (actionPressed("quest")) showQuestLog();
+  if (actionPressed("roadmap")) showExpansionBlueprints();
   checkPickups();
   checkExits();
   updateFlightHazards(dt);
@@ -1056,6 +1061,72 @@ function showQuestLog() {
     <p class="tiny">${done.slice(-18).map((i) => objectives[i]).join(" | ") || "None yet"}</p>`);
 }
 
+function showExpansionBlueprints() {
+  ensureBlueprintFlags();
+  const active = expansionBlueprints.find((b) => b.cycle === state.flags.activeBlueprint) || expansionBlueprints[0];
+  openModal("Expansion Blueprints", `<p>Active cycle: ${active.cycle}. ${active.title}</p>
+    <div class="grid">
+      ${expansionBlueprints.map((b) => {
+        const count = completedBlueprintStages(b.cycle).length;
+        return `<button class="choice" data-blueprint="${b.cycle}">${String(b.cycle).padStart(2, "0")}. ${b.title}<br><span class="tiny">${count}/5 stages. ${b.focus}</span></button>`;
+      }).join("")}
+    </div>`);
+  ui.modalBody.querySelectorAll("[data-blueprint]").forEach((btn) => {
+    btn.addEventListener("click", () => showBlueprintDetail(Number(btn.dataset.blueprint)));
+  });
+}
+
+function showBlueprintDetail(cycle) {
+  ensureBlueprintFlags();
+  const blueprint = expansionBlueprints.find((b) => b.cycle === cycle) || expansionBlueprints[0];
+  state.flags.activeBlueprint = blueprint.cycle;
+  const done = completedBlueprintStages(blueprint.cycle);
+  openModal(`${String(blueprint.cycle).padStart(2, "0")}. ${blueprint.title}`, `<p>${blueprint.focus}</p>
+    <div class="grid">
+      ${blueprint.stages.map((stage) => {
+        const complete = done.includes(stage.index);
+        return `<button class="choice" data-stage="${stage.index}" ${complete ? "disabled" : ""}>Stage ${stage.index}: ${stage.name}<br><span class="tiny">${stage.work}<br>Reward: ${stage.reward}${complete ? " (done)" : ""}</span></button>`;
+      }).join("")}
+    </div>
+    <p class="tiny">Brain query topic: ${blueprint.stages[Math.min(done.length, 4)].query}</p>`);
+  ui.modalBody.querySelectorAll("[data-stage]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      completeBlueprintStage(blueprint.cycle, Number(btn.dataset.stage));
+      showBlueprintDetail(blueprint.cycle);
+    });
+  });
+}
+
+function completeBlueprintStage(cycle, stageIndex) {
+  ensureBlueprintFlags();
+  const key = `${cycle}:${stageIndex}`;
+  if (state.flags.completedBlueprintStages.includes(key)) return;
+  const blueprint = expansionBlueprints.find((b) => b.cycle === cycle);
+  const stage = blueprint?.stages.find((s) => s.index === stageIndex);
+  if (!stage) return;
+  state.flags.completedBlueprintStages.push(key);
+  state.player.xp += 10 + cycle + stageIndex;
+  state.player.money += 3 + stageIndex;
+  state.player.inventory.push(stage.reward);
+  log(`Blueprint stage complete: ${blueprint.title} / ${stage.name}.`);
+  sfx("quest");
+  levelCheck();
+  persist();
+}
+
+function completedBlueprintStages(cycle) {
+  ensureBlueprintFlags();
+  return state.flags.completedBlueprintStages
+    .filter((key) => key.startsWith(`${cycle}:`))
+    .map((key) => Number(key.split(":")[1]));
+}
+
+function ensureBlueprintFlags() {
+  state.flags ||= {};
+  state.flags.activeBlueprint ||= 1;
+  state.flags.completedBlueprintStages ||= [];
+}
+
 function applyItem(item) {
   const effect = itemEffects[item] || {};
   if (effect.hp) state.player.hp = Math.min(state.player.maxHp, state.player.hp + effect.hp);
@@ -1398,8 +1469,10 @@ function updateHud() {
   ui.levelText.textContent = `Lv ${p.level} ${p.style}`;
   ui.formText.textContent = p.form;
   ui.moneyText.textContent = `${p.money}c`;
-  ui.objectivePanel.innerHTML = `<h3>Objective ${state.activeObjective + 1}/${objectives.length}</h3><p>${objectives[state.activeObjective] || "Postgame complete"}</p><p>Branch: ${state.branch}. ${isNight() ? "Night routes active." : "Day routes active."}</p>`;
-  ui.actionPanel.innerHTML = `<h3>Actions</h3><p>Space/A interact. J/X strike. K/B blast. F/Y form. M/LT forge. N/RT courier.</p><p>${techniques.map((t) => `${t.key}: ${t.name}${t.requires && !p.skills.includes(t.requires) ? " (locked)" : ""}`).join(" | ")}</p><p>Controller: ${gamepad.connected ? "connected" : "not connected"}. Weather effects: ${weatherSummary()}</p>`;
+  ensureBlueprintFlags();
+  const activeBlueprint = expansionBlueprints.find((b) => b.cycle === state.flags.activeBlueprint) || expansionBlueprints[0];
+  ui.objectivePanel.innerHTML = `<h3>Objective ${state.activeObjective + 1}/${objectives.length}</h3><p>${objectives[state.activeObjective] || "Postgame complete"}</p><p>Branch: ${state.branch}. ${isNight() ? "Night routes active." : "Day routes active."}</p><p>Blueprint ${activeBlueprint.cycle}: ${completedBlueprintStages(activeBlueprint.cycle).length}/5 ${activeBlueprint.title}</p>`;
+  ui.actionPanel.innerHTML = `<h3>Actions</h3><p>Space/A interact. J/X strike. K/B blast. F/Y form. M/LT forge. N/RT courier. R opens blueprints.</p><p>${techniques.map((t) => `${t.key}: ${t.name}${t.requires && !p.skills.includes(t.requires) ? " (locked)" : ""}`).join(" | ")}</p><p>Controller: ${gamepad.connected ? "connected" : "not connected"}. Weather effects: ${weatherSummary()}</p>`;
   ui.log.innerHTML = `<h3>Log</h3>${state.log.slice(-7).map((l) => `<p>${escapeHtml(l)}</p>`).join("")}`;
 }
 
@@ -1435,6 +1508,7 @@ function loadGame() {
   state.rng = new Rng(data.rng.seed, data.rng.count);
   state.completed = new Set(data.completed);
   state.flags ||= {};
+  ensureBlueprintFlags();
   log("Loaded.");
   sfx("travel");
 }

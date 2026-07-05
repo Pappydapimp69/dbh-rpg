@@ -49,6 +49,7 @@ http://localhost:4173
 - Three minigames: Figurine Tactics, Aura Forge, and Sky Courier.
 - Procedural sound effects and location/combat music.
 - Deterministic saved RNG state through `{ seed, count }`.
+- 20 structured expansion blueprints, each split into 5 in-game stages.
 
 ## Validation
 

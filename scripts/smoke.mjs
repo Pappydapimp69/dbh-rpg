@@ -5,6 +5,7 @@ const missing = requiredFiles.filter((file) => !existsSync(file));
 if (missing.length) fail(`Missing files: ${missing.join(", ")}`);
 
 const main = readFileSync("src/main.js", "utf8");
+const expansions = readFileSync("src/expansionBlueprints.js", "utf8");
 const blueprint = readFileSync("BLUEPRINT.md", "utf8");
 
 check(/class Rng/.test(main), "deterministic RNG class exists");
@@ -20,6 +21,9 @@ check(/function saveGame/.test(main) && /function loadGame/.test(main), "save an
 check(/destructibles/.test(main), "destructible environments exist");
 check(/weatherDamageModifier/.test(main), "weather combat modifier exists");
 check(/addEventListener\("gamepadconnected"/.test(main) && /function pollGamepad/.test(main), "controller support exists");
+check((expansions.match(/^  blueprint\(/gm) || []).length === 20, "20 expansion blueprints exist");
+check((expansions.match(/\["/g) || []).length === 100, "each expansion blueprint has five stages");
+check(/showExpansionBlueprints/.test(main), "expansion blueprint UI exists");
 
 console.log("Smoke checks passed.");
 

@@ -1,0 +1,220 @@
+:root {
+  color-scheme: dark;
+  --ink: #f4f7fb;
+  --muted: #aab7c7;
+  --panel: rgba(13, 17, 23, 0.82);
+  --line: rgba(255, 255, 255, 0.14);
+  --gold: #ffd166;
+  --red: #ff5a66;
+  --blue: #62d6ff;
+  --green: #64e690;
+  font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(98, 214, 255, 0.2), transparent 26%),
+    radial-gradient(circle at 80% 88%, rgba(255, 209, 102, 0.14), transparent 24%),
+    #090d12;
+}
+
+button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+button:hover,
+button:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
+  outline: none;
+}
+
+#game-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+#game {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  image-rendering: pixelated;
+  background: #12171d;
+}
+
+#hud,
+#panel,
+#controls {
+  position: absolute;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+#hud {
+  left: 14px;
+  top: 14px;
+  width: min(460px, calc(100vw - 28px));
+  padding: 10px;
+}
+
+.hud-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
+}
+
+.bars {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.bars label {
+  display: grid;
+  grid-template-columns: 28px 70px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bars b {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.bars i {
+  display: block;
+  width: 50%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+}
+
+#hpBar {
+  background: var(--red);
+}
+
+#spBar {
+  background: var(--blue);
+}
+
+#xpBar {
+  background: var(--gold);
+}
+
+#panel {
+  right: 14px;
+  top: 14px;
+  width: min(340px, calc(100vw - 28px));
+  max-height: calc(100vh - 92px);
+  padding: 12px;
+  overflow: auto;
+}
+
+#objectivePanel h3,
+#actionPanel h3,
+#log h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--gold);
+}
+
+#objectivePanel p,
+#actionPanel p,
+#log p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+#controls {
+  left: 50%;
+  bottom: 14px;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  transform: translateX(-50%);
+}
+
+#modal {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(720px, calc(100vh - 32px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #121820;
+}
+
+#modal::backdrop {
+  background: rgba(0, 0, 0, 0.62);
+}
+
+#modal h2 {
+  margin: 0 0 12px;
+  font-size: 22px;
+}
+
+#modalBody {
+  display: grid;
+  gap: 10px;
+}
+
+#modalBody .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+#modalBody .choice {
+  text-align: left;
+}
+
+#modalBody .tiny {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0;
+  margin: 14px 0 0;
+}
+
+@media (max-width: 760px) {
+  #panel {
+    top: auto;
+    right: 14px;
+    bottom: 76px;
+    max-height: 36vh;
+  }
+
+  #controls {
+    width: calc(100vw - 28px);
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+}

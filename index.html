@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DBH RPG</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="game-shell">
+      <canvas id="game" width="960" height="540" aria-label="DBH RPG game canvas"></canvas>
+      <section id="hud" aria-live="polite">
+        <div class="hud-row">
+          <strong id="zoneName">Metro Crater</strong>
+          <span id="clock">Day 1 08:00</span>
+          <span id="weather">Clear</span>
+        </div>
+        <div class="bars">
+          <label>HP <span id="hpText"></span><b><i id="hpBar"></i></b></label>
+          <label>SP <span id="spText"></span><b><i id="spBar"></i></b></label>
+          <label>XP <span id="xpText"></span><b><i id="xpBar"></i></b></label>
+        </div>
+        <div class="hud-row">
+          <span id="levelText">Lv 1</span>
+          <span id="formText">Base</span>
+          <span id="moneyText">0c</span>
+        </div>
+      </section>
+      <aside id="panel">
+        <div id="objectivePanel"></div>
+        <div id="actionPanel"></div>
+        <div id="log"></div>
+      </aside>
+      <nav id="controls">
+        <button id="newGameBtn" type="button">New</button>
+        <button id="saveBtn" type="button">Save</button>
+        <button id="loadBtn" type="button">Load</button>
+        <button id="skillsBtn" type="button">Skills</button>
+        <button id="inventoryBtn" type="button">Bag</button>
+        <button id="figurinesBtn" type="button">Figures</button>
+        <button id="questBtn" type="button">Quests</button>
+      </nav>
+      <dialog id="modal">
+        <form method="dialog">
+          <h2 id="modalTitle"></h2>
+          <div id="modalBody"></div>
+          <menu id="modalActions">
+            <button value="close">Close</button>
+          </menu>
+        </form>
+      </dialog>
+    </main>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>

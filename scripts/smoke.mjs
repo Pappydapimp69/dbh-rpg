@@ -1,11 +1,12 @@
 import { readFileSync, existsSync } from "node:fs";
 
-const requiredFiles = ["index.html", "styles.css", "src/main.js", "BLUEPRINT.md", "README.md"];
+const requiredFiles = ["index.html", "styles.css", "src/main.js", "src/characterCreation.js", "BLUEPRINT.md", "README.md", "docs/CHARACTER_CREATION_BLUEPRINT.md"];
 const missing = requiredFiles.filter((file) => !existsSync(file));
 if (missing.length) fail(`Missing files: ${missing.join(", ")}`);
 
 const main = readFileSync("src/main.js", "utf8");
 const expansions = readFileSync("src/expansionBlueprints.js", "utf8");
+const characterCreation = readFileSync("src/characterCreation.js", "utf8");
 const blueprint = readFileSync("BLUEPRINT.md", "utf8");
 
 check(/class Rng/.test(main), "deterministic RNG class exists");
@@ -24,6 +25,11 @@ check(/addEventListener\("gamepadconnected"/.test(main) && /function pollGamepad
 check((expansions.match(/^  blueprint\(/gm) || []).length === 20, "20 expansion blueprints exist");
 check((expansions.match(/\["/g) || []).length === 100, "each expansion blueprint has five stages");
 check(/showExpansionBlueprints/.test(main), "expansion blueprint UI exists");
+check((characterCreation.match(/id: "/g) || []).length >= 7, "at least seven playable species exist");
+check(/growth:/.test(characterCreation) && /xpRate/.test(characterCreation), "species XP growth data exists");
+check(/passives:/.test(characterCreation) && /active:/.test(characterCreation), "species passives and active abilities exist");
+check(/showCharacterCreator/.test(main) && /data-species/.test(main), "character creator species UI exists");
+check(/applySpeciesToPlayer/.test(main) && /useSpeciesAbility/.test(main), "species stats and active ability logic exists");
 
 console.log("Smoke checks passed.");
 

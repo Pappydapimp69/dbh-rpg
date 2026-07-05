@@ -1,4 +1,5 @@
 import { expansionBlueprints } from "./expansionBlueprints.js";
+import { baseStats, characterSpecies, getSpeciesById } from "./characterCreation.js";
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -50,6 +51,7 @@ const inputMap = {
   courier: ["n", "padRT"],
   quest: ["q", "padStart"],
   roadmap: ["r"],
+  species: ["e", "padLS"],
 };
 
 const palette = {
@@ -306,6 +308,7 @@ const zones = {
 };
 
 const state = makeWorld();
+applySpeciesToPlayer("terran");
 let lastTime = performance.now();
 let camera = { x: 0, y: 0 };
 let audio = null;
@@ -328,6 +331,8 @@ function makeWorld(seed = Date.now() >>> 0) {
     activeObjective: 0,
     player: {
       name: "Rookie",
+      speciesId: "terran",
+      speciesName: "Terran",
       origin: "Scavenger",
       style: "Striker",
       aura: "#62d6ff",
@@ -342,6 +347,13 @@ function makeWorld(seed = Date.now() >>> 0) {
       xp: 0,
       level: 1,
       basePower: 1,
+      guardStat: 1,
+      speedStat: 1,
+      focusStat: 1,
+      luckStat: 1,
+      xpRate: 1,
+      speciesCooldown: 0,
+      speciesTimers: {},
       money: 25,
       skillPoints: 0,
       form: "Base",
@@ -500,7 +512,7 @@ function update(dt) {
 function updateExploration(dt) {
   const p = state.player;
   const z = zones[state.zone];
-  const speed = (z.flight ? 190 : 128) * (p.form === "Flare" ? 1.18 : 1) * weatherMoveModifier();
+  const speed = (z.flight ? 190 : 128) * (p.form === "Flare" ? 1.18 : 1) * p.speedStat * weatherMoveModifier();
   const move = movementVector();
   let dx = move.x;
   let dy = move.y;
@@ -528,10 +540,12 @@ function updateExploration(dt) {
   if (actionPressed("courier")) startSkyCourier();
   if (actionPressed("quest")) showQuestLog();
   if (actionPressed("roadmap")) showExpansionBlueprints();
+  if (actionPressed("species")) useSpeciesAbility();
   checkPickups();
   checkExits();
   updateFlightHazards(dt);
   drainForm(dt);
+  updateSpeciesPassives(dt);
   autosaveTimer += dt;
   if (autosaveTimer > 30) {
     autosaveTimer = 0;
@@ -628,7 +642,7 @@ function talk(npc) {
 function train(npc) {
   if (state.player.money >= 5) {
     state.player.money -= 5;
-    state.player.xp += 12;
+    grantXp(12, "training");
     state.player.sp = state.player.maxSp;
     log(`${npc.name} trains you. Spirit restored.`);
     sfx("level");
@@ -702,8 +716,9 @@ function strike() {
 }
 
 function blast() {
-  if (state.player.sp < 8) return log("Not enough spirit.");
-  state.player.sp -= 8;
+  const cost = getCurrentSpecies().id === "bioarc" ? 7 : 8;
+  if (state.player.sp < cost) return log("Not enough spirit.");
+  state.player.sp -= cost;
   sfx("blast");
   const target = nearestEnemy(5);
   if (target) hitEnemy(target, 16 * forms[state.player.form].power);
@@ -745,7 +760,14 @@ function nearestEnemy(range) {
 }
 
 function hitEnemy(enemy, dmg) {
-  enemy.hp -= Math.round(dmg * weatherDamageModifier());
+  const p = state.player;
+  let finalDamage = dmg * weatherDamageModifier();
+  if (getCurrentSpecies().id === "starforged" && p.hp / p.maxHp < 0.4) finalDamage *= 1.12;
+  if (p.speciesTimers.battleSurge > 0) {
+    finalDamage *= 1.35;
+    p.speciesTimers.battleSurge = 0;
+  }
+  enemy.hp -= Math.round(finalDamage);
   enemy.flash = 0.15;
   sfx("hit");
   if (enemy.hp <= 0) defeatEnemy(enemy);
@@ -754,7 +776,7 @@ function hitEnemy(enemy, dmg) {
 
 function defeatEnemy(enemy) {
   enemy.alive = false;
-  state.player.xp += enemy.xp;
+    grantXp(enemy.xp, enemy.boss ? "boss" : "combat");
   state.player.money += enemy.boss ? 40 : 8;
   log(`Defeated ${enemy.name}.`);
   sfx(enemy.boss ? "bossWin" : "pickup");
@@ -781,8 +803,9 @@ function damageDestructible(d, dmg) {
   sfx("break");
   if (d.hp <= 0) {
     log(`Destroyed ${d.kind}.`);
-    state.player.xp += 4;
-    if (state.rng.next() < (state.player.skills.includes("loot") ? 0.7 : 0.35)) {
+    grantXp(4, "destruction");
+    const speciesLoot = getCurrentSpecies().id === "majinite" ? 0.18 : 0;
+    if (state.rng.next() < (state.player.skills.includes("loot") ? 0.7 : 0.35) + speciesLoot) {
       const drop = state.rng.pick(["Crater Coin", "Herb Bundle", "Spirit Tea"]);
       ensureMap(state.zone).loot.push({ x: d.x, y: d.y, item: drop });
       log(`${drop} fell out.`);
@@ -806,7 +829,7 @@ function updateEncounter(dt) {
   if (actionPressed("guard")) guard();
   if (encounter.timer > 1.2 && e.alive) {
     encounter.timer = 0;
-    const guardBoost = forms[state.player.form].guard || 1;
+    const guardBoost = (forms[state.player.form].guard || 1) * state.player.guardStat * (state.player.speciesTimers.rootguard > 0 ? 1.8 : 1);
     const dmg = Math.max(1, Math.round(e.atk / guardBoost));
     state.player.hp -= dmg;
     sfx("hurt");
@@ -823,8 +846,52 @@ function updateEncounter(dt) {
 }
 
 function guard() {
-  state.player.sp = Math.min(state.player.maxSp, state.player.sp + 4);
+  state.player.sp = Math.min(state.player.maxSp, state.player.sp + (getCurrentSpecies().id === "android" ? 8 : 4));
   sfx("guard");
+}
+
+function useSpeciesAbility() {
+  const p = state.player;
+  const species = getCurrentSpecies();
+  if (p.speciesCooldown > 0) return log(`${species.active.name} is cooling down.`);
+  if (p.sp < species.active.cost) return log("Not enough spirit.");
+  p.sp -= species.active.cost;
+  p.speciesCooldown = species.id === "android" ? 5 : 12;
+  if (species.id === "terran") {
+    p.sp = Math.min(p.maxSp, p.sp + 28);
+    p.speciesTimers.focus = 6;
+  }
+  if (species.id === "starforged") p.speciesTimers.battleSurge = 8;
+  if (species.id === "verdant") {
+    p.hp = Math.min(p.maxHp, p.hp + 18);
+    p.speciesTimers.rootguard = 5;
+  }
+  if (species.id === "bioarc") {
+    const target = nearestEnemy(6);
+    if (target) hitEnemy(target, 24 + p.focusStat * 4);
+    const breakable = ensureMap(state.zone).destructibles.find((d) => d.hp > 0 && dist(d, p) < 5);
+    if (breakable) damageDestructible(breakable, 2);
+  }
+  if (species.id === "majinite") {
+    p.hp = Math.min(p.maxHp, p.hp + 14);
+    p.px -= TILE;
+  }
+  if (species.id === "android") {
+    p.sp = Math.min(p.maxSp, p.sp + 24);
+    p.speciesCooldown = 4;
+  }
+  if (species.id === "celestial") p.speciesTimers.noFormDrain = 5;
+  log(`${species.name} ability: ${species.active.name}.`);
+  sfx("skill");
+}
+
+function updateSpeciesPassives(dt) {
+  const p = state.player;
+  p.speciesCooldown = Math.max(0, p.speciesCooldown - dt);
+  for (const key of Object.keys(p.speciesTimers)) p.speciesTimers[key] = Math.max(0, p.speciesTimers[key] - dt);
+  if (getCurrentSpecies().id === "verdant" && !encounter && p.hp < p.maxHp) {
+    p.hp = Math.min(p.maxHp, p.hp + dt * 1.2);
+  }
 }
 
 function maybeRandomEncounter(dt) {
@@ -915,7 +982,10 @@ function drainForm(dt) {
     state.player.sp = Math.min(state.player.maxSp, state.player.sp + dt * 6);
     return;
   }
-  const mastery = state.player.skills.includes("form") ? 0.65 : 1;
+  if (state.player.speciesTimers.noFormDrain > 0) return;
+  let mastery = state.player.skills.includes("form") ? 0.65 : 1;
+  if (getCurrentSpecies().id === "celestial") mastery *= 0.9;
+  if (getCurrentSpecies().id === "starforged" && state.player.form === "Flare") mastery *= 0.85;
   state.player.sp -= form.drain * mastery * dt;
   if (state.player.sp <= 0) {
     state.player.sp = 0;
@@ -926,17 +996,71 @@ function drainForm(dt) {
 
 function levelCheck() {
   const p = state.player;
-  const needed = p.level * 45;
+  const needed = xpToNextLevel();
   if (p.xp < needed) return;
   p.xp -= needed;
   p.level++;
   p.skillPoints++;
-  p.maxHp += 12;
-  p.maxSp += 8;
+  const species = getCurrentSpecies();
+  p.maxHp += species.growth.hp;
+  p.maxSp += species.growth.sp;
+  if (p.level % species.growth.powerEvery === 0) p.basePower++;
   p.hp = p.maxHp;
   p.sp = p.maxSp;
   log(`Level up! You are now level ${p.level}.`);
   sfx("level");
+}
+
+function grantXp(amount, reason = "general") {
+  const species = getCurrentSpecies();
+  let multiplier = 1;
+  if (species.id === "terran" && reason === "training") multiplier += 0.15;
+  if (species.id === "starforged" && reason === "boss") multiplier += 0.2;
+  state.player.xp += Math.max(1, Math.round(amount * multiplier));
+}
+
+function xpToNextLevel() {
+  const rate = getCurrentSpecies().growth.xpRate || 1;
+  return Math.max(12, Math.round((state.player.level * 45) / rate));
+}
+
+function getCurrentSpecies() {
+  ensurePlayerCharacterDefaults();
+  return getSpeciesById(state.player.speciesId);
+}
+
+function applySpeciesToPlayer(speciesId, resetVitals = true) {
+  const species = getSpeciesById(speciesId);
+  const p = state.player;
+  p.speciesId = species.id;
+  p.speciesName = species.name;
+  p.maxHp = baseStats.hp + species.stats.hp;
+  p.maxSp = baseStats.sp + species.stats.sp;
+  p.basePower = Math.max(1, baseStats.power + species.stats.power);
+  p.guardStat = Math.max(0.5, baseStats.guard + species.stats.guard * 0.12);
+  p.speedStat = Math.max(0.7, baseStats.speed + species.stats.speed * 0.08);
+  p.focusStat = Math.max(0.5, baseStats.focus + species.stats.focus * 0.15);
+  p.luckStat = Math.max(0.5, baseStats.luck + species.stats.luck * 0.15);
+  p.xpRate = species.growth.xpRate;
+  p.aura = species.auraBias;
+  p.inventory = [...new Set([...p.inventory, ...species.startingItems])];
+  if (resetVitals) {
+    p.hp = p.maxHp;
+    p.sp = p.maxSp;
+  }
+}
+
+function ensurePlayerCharacterDefaults() {
+  const p = state.player;
+  p.speciesId ||= "terran";
+  p.speciesName ||= getSpeciesById(p.speciesId).name;
+  p.guardStat ||= 1;
+  p.speedStat ||= 1;
+  p.focusStat ||= 1;
+  p.luckStat ||= 1;
+  p.xpRate ||= getSpeciesById(p.speciesId).growth.xpRate;
+  p.speciesCooldown ||= 0;
+  p.speciesTimers ||= {};
 }
 
 function completeObjective(index) {
@@ -971,6 +1095,7 @@ function isNight() {
 
 function weatherMoveModifier() {
   if (state.player.skills.includes("weather") || state.player.equipment.charm.includes("Weather")) return 1;
+  if (getCurrentSpecies().id === "android" && ["Snow", "Dust Storm"].includes(state.weather)) return 0.96;
   if (state.weather === "Snow") return 0.82;
   if (state.weather === "Dust Storm") return 0.9;
   if (state.weather === "Wind" && zones[state.zone].flight) return 1.12;
@@ -979,7 +1104,7 @@ function weatherMoveModifier() {
 
 function weatherDamageModifier() {
   if (state.weather === "Rain" && state.player.form === "Flare") return 0.82;
-  if (state.weather === "Thunderstorm" && state.player.form === "Storm") return 1.25;
+  if (state.weather === "Thunderstorm" && state.player.form === "Storm") return getCurrentSpecies().id === "bioarc" ? 1.35 : 1.25;
   if (state.weather === "Dust Storm" && state.player.style === "Trickster") return 1.15;
   return 1;
 }
@@ -993,17 +1118,29 @@ function activeNpcs(map) {
 }
 
 function showCharacterCreator() {
-  openModal("Create Your Fighter", `<div class="grid">
+  openModal("Create Your Fighter", `<h3>Species</h3><div class="grid">
+    ${characterSpecies.map((species) => `<button class="choice" data-species="${species.id}" style="border-color:${species.auraBias}">${species.name}<br><span class="tiny">${species.archetype}<br>HP ${signed(species.stats.hp)} SP ${signed(species.stats.sp)} Power ${signed(species.stats.power)} Speed ${signed(species.stats.speed)} XP x${species.growth.xpRate}<br>${species.active.name}: ${species.active.effect}</span></button>`).join("")}
+  </div>
+  <h3>Origin</h3><div class="grid">
     ${["Exile", "Prodigy", "Scavenger", "Shrine Student"].map((origin) => `<button class="choice" data-origin="${origin}">${origin}<br><span class="tiny">Origin path</span></button>`).join("")}
   </div>
+  <h3>Style</h3>
   <div class="grid">
     ${["Striker", "Blaster", "Guardian", "Trickster"].map((style) => `<button class="choice" data-style="${style}">${style}<br><span class="tiny">Starting combat style</span></button>`).join("")}
   </div>
+  <h3>Aura</h3>
   <div class="grid">
     ${["#62d6ff", "#ffd166", "#64e690", "#ff5a66", "#b185ff", "#f4f7fb"].map((color) => `<button class="choice" data-aura="${color}" style="border-color:${color}">Aura<br><span class="tiny">${color}</span></button>`).join("")}
   </div>
-  <p class="tiny">Move with WASD/arrows or controller stick/D-pad. Space/A talks. J/X strikes. K/B blasts. F/Y transforms. M/LT opens Aura Forge. N/RT opens Sky Courier.</p>`);
-  const chosen = { origin: state.player.origin, style: state.player.style, aura: state.player.aura };
+  <p class="tiny">Move with WASD/arrows or controller stick/D-pad. Space/A talks. E/LS uses species ability. J/X strikes. K/B blasts. F/Y transforms.</p>`);
+  const chosen = { species: state.player.speciesId, origin: state.player.origin, style: state.player.style, aura: state.player.aura };
+  ui.modalBody.querySelectorAll("[data-species]").forEach((b) => b.addEventListener("click", () => {
+    chosen.species = b.dataset.species;
+    applySpeciesToPlayer(chosen.species);
+    log(`Species selected: ${getCurrentSpecies().name}.`);
+    completeObjective(1);
+    updateHud();
+  }));
   ui.modalBody.querySelectorAll("[data-origin]").forEach((b) => b.addEventListener("click", () => {
     chosen.origin = b.dataset.origin;
     state.player.origin = chosen.origin;
@@ -1017,6 +1154,10 @@ function showCharacterCreator() {
     chosen.aura = b.dataset.aura;
     state.player.aura = chosen.aura;
   }));
+}
+
+function signed(value) {
+  return value > 0 ? `+${value}` : String(value);
 }
 
 function showSkills() {
@@ -1105,7 +1246,7 @@ function completeBlueprintStage(cycle, stageIndex) {
   const stage = blueprint?.stages.find((s) => s.index === stageIndex);
   if (!stage) return;
   state.flags.completedBlueprintStages.push(key);
-  state.player.xp += 10 + cycle + stageIndex;
+  grantXp(10 + cycle + stageIndex, "blueprint");
   state.player.money += 3 + stageIndex;
   state.player.inventory.push(stage.reward);
   log(`Blueprint stage complete: ${blueprint.title} / ${stage.name}.`);
@@ -1129,8 +1270,9 @@ function ensureBlueprintFlags() {
 
 function applyItem(item) {
   const effect = itemEffects[item] || {};
-  if (effect.hp) state.player.hp = Math.min(state.player.maxHp, state.player.hp + effect.hp);
-  if (effect.sp) state.player.sp = Math.min(state.player.maxSp, state.player.sp + effect.sp);
+  const itemBoost = getCurrentSpecies().id === "terran" ? 1.1 : 1;
+  if (effect.hp) state.player.hp = Math.min(state.player.maxHp, state.player.hp + Math.round(effect.hp * itemBoost));
+  if (effect.sp) state.player.sp = Math.min(state.player.maxSp, state.player.sp + Math.round(effect.sp * itemBoost));
   if (effect.hpMax) {
     state.player.maxHp += effect.hpMax;
     state.player.hp += effect.hpMax;
@@ -1173,7 +1315,7 @@ function figurineAttack(index) {
   sfx("figurineHit");
   if (!g.enemy.some((f) => f.hpNow > 0)) {
     state.player.money += 22;
-    state.player.xp += 18;
+    grantXp(18, "figurines");
     completeObjective(13);
     log(`Won figurine duel against ${g.opponent}.`);
     minigame = null;
@@ -1454,6 +1596,7 @@ function drawEncounterBanner() {
 }
 
 function updateHud() {
+  ensurePlayerCharacterDefaults();
   const p = state.player;
   const hour = Math.floor(state.time.minute / 60);
   const minute = Math.floor(state.time.minute % 60);
@@ -1462,17 +1605,17 @@ function updateHud() {
   ui.weather.textContent = state.weather;
   ui.hpText.textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
   ui.spText.textContent = `${Math.ceil(p.sp)}/${p.maxSp}`;
-  ui.xpText.textContent = `${p.xp}/${p.level * 45}`;
+  ui.xpText.textContent = `${p.xp}/${xpToNextLevel()}`;
   ui.hpBar.style.width = `${clamp((p.hp / p.maxHp) * 100, 0, 100)}%`;
   ui.spBar.style.width = `${clamp((p.sp / p.maxSp) * 100, 0, 100)}%`;
-  ui.xpBar.style.width = `${clamp((p.xp / (p.level * 45)) * 100, 0, 100)}%`;
-  ui.levelText.textContent = `Lv ${p.level} ${p.style}`;
+  ui.xpBar.style.width = `${clamp((p.xp / xpToNextLevel()) * 100, 0, 100)}%`;
+  ui.levelText.textContent = `Lv ${p.level} ${p.speciesName || "Terran"} ${p.style}`;
   ui.formText.textContent = p.form;
   ui.moneyText.textContent = `${p.money}c`;
   ensureBlueprintFlags();
   const activeBlueprint = expansionBlueprints.find((b) => b.cycle === state.flags.activeBlueprint) || expansionBlueprints[0];
   ui.objectivePanel.innerHTML = `<h3>Objective ${state.activeObjective + 1}/${objectives.length}</h3><p>${objectives[state.activeObjective] || "Postgame complete"}</p><p>Branch: ${state.branch}. ${isNight() ? "Night routes active." : "Day routes active."}</p><p>Blueprint ${activeBlueprint.cycle}: ${completedBlueprintStages(activeBlueprint.cycle).length}/5 ${activeBlueprint.title}</p>`;
-  ui.actionPanel.innerHTML = `<h3>Actions</h3><p>Space/A interact. J/X strike. K/B blast. F/Y form. M/LT forge. N/RT courier. R opens blueprints.</p><p>${techniques.map((t) => `${t.key}: ${t.name}${t.requires && !p.skills.includes(t.requires) ? " (locked)" : ""}`).join(" | ")}</p><p>Controller: ${gamepad.connected ? "connected" : "not connected"}. Weather effects: ${weatherSummary()}</p>`;
+  ui.actionPanel.innerHTML = `<h3>Actions</h3><p>Space/A interact. E/LS ${getCurrentSpecies().active.name}. J/X strike. K/B blast. F/Y form. M/LT forge. N/RT courier. R opens blueprints.</p><p>${techniques.map((t) => `${t.key}: ${t.name}${t.requires && !p.skills.includes(t.requires) ? " (locked)" : ""}`).join(" | ")}</p><p>Controller: ${gamepad.connected ? "connected" : "not connected"}. Weather effects: ${weatherSummary()}</p>`;
   ui.log.innerHTML = `<h3>Log</h3>${state.log.slice(-7).map((l) => `<p>${escapeHtml(l)}</p>`).join("")}`;
 }
 
@@ -1509,6 +1652,7 @@ function loadGame() {
   state.completed = new Set(data.completed);
   state.flags ||= {};
   ensureBlueprintFlags();
+  ensurePlayerCharacterDefaults();
   log("Loaded.");
   sfx("travel");
 }

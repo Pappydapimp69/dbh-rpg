@@ -42,7 +42,7 @@ http://localhost:4173
 - Offline browser game with no runtime dependency install.
 - Top-down tile maps with multiple regions.
 - 2.5D-style flight route with parallax, hazards, and lift visuals.
-- Character creation with origin, style, and aura color.
+- Character creation with seven original species, origin, style, aura color, stats, XP growth, passives, and active abilities.
 - NPCs, shops, mentors, enemies, bosses, loot, destructibles, random encounters, and pickups.
 - Leveling, stats, skill points, skill tree, inventory, equipment, techniques, and transformations.
 - Weather, day/night, branch choice, NPC availability, and 55-objective campaign track.

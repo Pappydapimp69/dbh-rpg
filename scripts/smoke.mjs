@@ -19,6 +19,7 @@ check(/function sfx/.test(main) && /function updateMusic/.test(main), "procedura
 check(/function saveGame/.test(main) && /function loadGame/.test(main), "save and load exist");
 check(/destructibles/.test(main), "destructible environments exist");
 check(/weatherDamageModifier/.test(main), "weather combat modifier exists");
+check(/addEventListener\("gamepadconnected"/.test(main) && /function pollGamepad/.test(main), "controller support exists");
 
 console.log("Smoke checks passed.");
 

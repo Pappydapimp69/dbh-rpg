@@ -28,6 +28,26 @@ const TILE = 32;
 const SAVE_KEY = "dbh-rpg-save-v1";
 const keys = new Set();
 const pressed = new Set();
+const gamepad = {
+  index: null,
+  previous: new Set(),
+  current: new Set(),
+  lx: 0,
+  ly: 0,
+  connected: false,
+  name: "",
+};
+
+const inputMap = {
+  interact: [" ", "Enter", "padA"],
+  strike: ["j", "padX"],
+  blast: ["k", "padB"],
+  guard: ["l", "padLB"],
+  form: ["f", "padY"],
+  forge: ["m", "padLT"],
+  courier: ["n", "padRT"],
+  quest: ["q", "padStart"],
+};
 
 const palette = {
   road: "#5c6975",
@@ -391,6 +411,25 @@ addEventListener("keyup", (e) => {
   keys.delete(e.key);
 });
 
+addEventListener("gamepadconnected", (e) => {
+  gamepad.index = e.gamepad.index;
+  gamepad.connected = true;
+  gamepad.name = e.gamepad.id;
+  unlockAudio();
+  log(`Controller connected: ${e.gamepad.id}`);
+});
+
+addEventListener("gamepaddisconnected", (e) => {
+  if (gamepad.index === e.gamepad.index) {
+    gamepad.index = null;
+    gamepad.connected = false;
+    gamepad.name = "";
+    gamepad.current.clear();
+    gamepad.previous.clear();
+    log("Controller disconnected.");
+  }
+});
+
 document.getElementById("newGameBtn").addEventListener("click", () => showCharacterCreator());
 document.getElementById("saveBtn").addEventListener("click", saveGame);
 document.getElementById("loadBtn").addEventListener("click", loadGame);
@@ -405,10 +444,33 @@ requestAnimationFrame(loop);
 function loop(now) {
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
+  pollGamepad();
   update(dt);
   draw();
   pressed.clear();
   requestAnimationFrame(loop);
+}
+
+function pollGamepad() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const pad = gamepad.index !== null ? pads[gamepad.index] : [...pads].find(Boolean);
+  gamepad.previous = new Set(gamepad.current);
+  gamepad.current.clear();
+  gamepad.lx = 0;
+  gamepad.ly = 0;
+  if (!pad) return;
+  gamepad.index = pad.index;
+  gamepad.connected = true;
+  gamepad.name = pad.id;
+  const names = ["padA", "padB", "padX", "padY", "padLB", "padRB", "padLT", "padRT", "padBack", "padStart", "padLS", "padRS", "padUp", "padDown", "padLeft", "padRight"];
+  pad.buttons.forEach((button, index) => {
+    if (button.pressed && names[index]) gamepad.current.add(names[index]);
+  });
+  const dead = 0.22;
+  const lx = pad.axes[0] || 0;
+  const ly = pad.axes[1] || 0;
+  gamepad.lx = Math.abs(lx) > dead ? lx : 0;
+  gamepad.ly = Math.abs(ly) > dead ? ly : 0;
 }
 
 function update(dt) {
@@ -417,7 +479,11 @@ function update(dt) {
     updateHud();
     return;
   }
-  if (ui.modal.open) return;
+  if (ui.modal.open) {
+    handleModalInput();
+    updateHud();
+    return;
+  }
   ensureMap(state.zone);
   if (encounter) updateEncounter(dt);
   else if (minigame) updateMinigame(dt);
@@ -431,12 +497,9 @@ function updateExploration(dt) {
   const p = state.player;
   const z = zones[state.zone];
   const speed = (z.flight ? 190 : 128) * (p.form === "Flare" ? 1.18 : 1) * weatherMoveModifier();
-  let dx = 0;
-  let dy = 0;
-  if (keys.has("ArrowLeft") || keys.has("a")) dx--;
-  if (keys.has("ArrowRight") || keys.has("d")) dx++;
-  if (keys.has("ArrowUp") || keys.has("w")) dy--;
-  if (keys.has("ArrowDown") || keys.has("s")) dy++;
+  const move = movementVector();
+  let dx = move.x;
+  let dy = move.y;
   const len = Math.hypot(dx, dy) || 1;
   const oldX = p.px;
   const oldY = p.py;
@@ -452,13 +515,14 @@ function updateExploration(dt) {
     maybeFootstep();
     maybeRandomEncounter(dt);
   }
-  if (pressed.has(" ")) interact();
-  if (pressed.has("j")) strike();
-  if (pressed.has("k")) blast();
-  for (const tech of techniques) if (pressed.has(tech.key)) useTechnique(tech);
-  if (pressed.has("f")) cycleForm();
-  if (pressed.has("m")) startAuraForge();
-  if (pressed.has("n")) startSkyCourier();
+  if (actionPressed("interact")) interact();
+  if (actionPressed("strike")) strike();
+  if (actionPressed("blast")) blast();
+  for (const tech of techniques) if (techPressed(tech)) useTechnique(tech);
+  if (actionPressed("form")) cycleForm();
+  if (actionPressed("forge")) startAuraForge();
+  if (actionPressed("courier")) startSkyCourier();
+  if (actionPressed("quest")) showQuestLog();
   checkPickups();
   checkExits();
   updateFlightHazards(dt);
@@ -468,6 +532,55 @@ function updateExploration(dt) {
     autosaveTimer = 0;
     persist();
   }
+}
+
+function movementVector() {
+  let x = gamepad.lx;
+  let y = gamepad.ly;
+  if (keys.has("ArrowLeft") || keys.has("a") || gamepad.current.has("padLeft")) x -= 1;
+  if (keys.has("ArrowRight") || keys.has("d") || gamepad.current.has("padRight")) x += 1;
+  if (keys.has("ArrowUp") || keys.has("w") || gamepad.current.has("padUp")) y -= 1;
+  if (keys.has("ArrowDown") || keys.has("s") || gamepad.current.has("padDown")) y += 1;
+  return { x: clamp(x, -1, 1), y: clamp(y, -1, 1) };
+}
+
+function actionPressed(action) {
+  return (inputMap[action] || []).some((code) => pressed.has(code) || (gamepad.current.has(code) && !gamepad.previous.has(code)));
+}
+
+function gamepadPressed(code) {
+  return gamepad.current.has(code) && !gamepad.previous.has(code);
+}
+
+function techPressed(tech) {
+  if (pressed.has(tech.key)) return true;
+  const index = Number(tech.key);
+  if (index === 1) return gamepad.current.has("padRB") && !gamepad.previous.has("padRB");
+  if (index === 2) return gamepad.current.has("padLB") && !gamepad.previous.has("padLB");
+  if (index === 3) return gamepad.current.has("padBack") && !gamepad.previous.has("padBack");
+  if (index === 4) return gamepad.current.has("padRS") && !gamepad.previous.has("padRS");
+  return false;
+}
+
+function handleModalInput() {
+  if (!gamepad.connected) return;
+  const buttons = [...ui.modal.querySelectorAll("button:not(:disabled)")];
+  if (!buttons.length) return;
+  const active = document.activeElement;
+  let index = buttons.includes(active) ? buttons.indexOf(active) : 0;
+  if (gamepadPressed("padDown") || gamepadPressed("padRight")) {
+    index = (index + 1) % buttons.length;
+    buttons[index].focus();
+  }
+  if (gamepadPressed("padUp") || gamepadPressed("padLeft")) {
+    index = (index - 1 + buttons.length) % buttons.length;
+    buttons[index].focus();
+  }
+  if (actionPressed("interact")) {
+    buttons[index].focus();
+    buttons[index].click();
+  }
+  if (gamepadPressed("padB") && ui.modal.open) ui.modal.close();
 }
 
 function pixelToTile(v) {
@@ -683,9 +796,9 @@ function startEncounter(enemy) {
 function updateEncounter(dt) {
   const e = encounter.enemy;
   encounter.timer += dt;
-  if (pressed.has("j")) hitEnemy(e, 13 * forms[state.player.form].power);
-  if (pressed.has("k")) blast();
-  if (pressed.has("l")) guard();
+  if (actionPressed("strike")) hitEnemy(e, 13 * forms[state.player.form].power);
+  if (actionPressed("blast")) blast();
+  if (actionPressed("guard")) guard();
   if (encounter.timer > 1.2 && e.alive) {
     encounter.timer = 0;
     const guardBoost = forms[state.player.form].guard || 1;
@@ -884,7 +997,7 @@ function showCharacterCreator() {
   <div class="grid">
     ${["#62d6ff", "#ffd166", "#64e690", "#ff5a66", "#b185ff", "#f4f7fb"].map((color) => `<button class="choice" data-aura="${color}" style="border-color:${color}">Aura<br><span class="tiny">${color}</span></button>`).join("")}
   </div>
-  <p class="tiny">Move with WASD or arrows. Space talks/interacts. J strikes. K blasts. F transforms. M opens Aura Forge. N opens Sky Courier.</p>`);
+  <p class="tiny">Move with WASD/arrows or controller stick/D-pad. Space/A talks. J/X strikes. K/B blasts. F/Y transforms. M/LT opens Aura Forge. N/RT opens Sky Courier.</p>`);
   const chosen = { origin: state.player.origin, style: state.player.style, aura: state.player.aura };
   ui.modalBody.querySelectorAll("[data-origin]").forEach((b) => b.addEventListener("click", () => {
     chosen.origin = b.dataset.origin;
@@ -1023,7 +1136,7 @@ function updateMinigame(dt) {
   if (!minigame) return;
   if (minigame.type === "forge") {
     minigame.pulse += dt * 2.5;
-    if (pressed.has(" ")) {
+    if (actionPressed("interact")) {
       const accuracy = 1 - Math.abs(Math.sin(minigame.pulse));
       minigame.score += Math.round(accuracy * 20);
       minigame.tries--;
@@ -1041,8 +1154,9 @@ function updateMinigame(dt) {
   }
   if (minigame?.type === "courier") {
     minigame.t += dt;
-    if (keys.has("ArrowUp") || keys.has("w")) minigame.y -= 90 * dt;
-    if (keys.has("ArrowDown") || keys.has("s")) minigame.y += 90 * dt;
+    const move = movementVector();
+    if (move.y < 0) minigame.y -= 90 * dt;
+    if (move.y > 0) minigame.y += 90 * dt;
     minigame.y = Math.max(20, Math.min(170, minigame.y));
     minigame.cargo -= dt * (state.weather === "Wind" ? 5 : 2);
     minigame.score += dt * 10;
@@ -1285,7 +1399,7 @@ function updateHud() {
   ui.formText.textContent = p.form;
   ui.moneyText.textContent = `${p.money}c`;
   ui.objectivePanel.innerHTML = `<h3>Objective ${state.activeObjective + 1}/${objectives.length}</h3><p>${objectives[state.activeObjective] || "Postgame complete"}</p><p>Branch: ${state.branch}. ${isNight() ? "Night routes active." : "Day routes active."}</p>`;
-  ui.actionPanel.innerHTML = `<h3>Actions</h3><p>Space interact. J strike. K blast. F form. M forge. N courier.</p><p>${techniques.map((t) => `${t.key}: ${t.name}${t.requires && !p.skills.includes(t.requires) ? " (locked)" : ""}`).join(" | ")}</p><p>Weather effects: ${weatherSummary()}</p>`;
+  ui.actionPanel.innerHTML = `<h3>Actions</h3><p>Space/A interact. J/X strike. K/B blast. F/Y form. M/LT forge. N/RT courier.</p><p>${techniques.map((t) => `${t.key}: ${t.name}${t.requires && !p.skills.includes(t.requires) ? " (locked)" : ""}`).join(" | ")}</p><p>Controller: ${gamepad.connected ? "connected" : "not connected"}. Weather effects: ${weatherSummary()}</p>`;
   ui.log.innerHTML = `<h3>Log</h3>${state.log.slice(-7).map((l) => `<p>${escapeHtml(l)}</p>`).join("")}`;
 }
 

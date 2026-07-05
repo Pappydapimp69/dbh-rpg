@@ -21,6 +21,7 @@ http://localhost:4173
 ## Controls
 
 - Move: `WASD` or arrow keys
+- Controller move: left stick or D-pad
 - Interact: `Space`
 - Strike: `J`
 - Blast: `K`
@@ -28,6 +29,7 @@ http://localhost:4173
 - Techniques: `1`, `2`, `3`, `4`
 - Aura Forge minigame: `M`
 - Sky Courier minigame: `N`
+- Controller actions: `A` interact/confirm, `X` strike, `B` blast, `Y` transform, `LB/RB/Back/RS` techniques, `LT` Aura Forge, `RT` Sky Courier, `Start` quest log
 
 ## Built Features
 

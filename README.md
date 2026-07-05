@@ -4,6 +4,12 @@ Offline 2D top-down tile RPG prototype built from the five-stage blueprint in `B
 
 The game uses original in-project names, generated pixel-style canvas visuals, and procedural WebAudio sounds/music. It is inspired by high-energy martial-arts anime RPGs, but it does not ship licensed characters, locations, music, or sprites.
 
+Hosted build:
+
+```text
+https://pappydapimp69.github.io/dbh-rpg/
+```
+
 ## Run
 
 Start a static server in this folder and open the local URL:

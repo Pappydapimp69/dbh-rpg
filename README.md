@@ -40,6 +40,7 @@ http://localhost:4173
 ## Built Features
 
 - Offline browser game with no runtime dependency install.
+- Start screen with continue, new game, and controls.
 - Top-down tile maps with multiple regions.
 - 2.5D-style flight route with parallax, hazards, and lift visuals.
 - Character creation with seven original species, origin, style, aura color, stats, XP growth, passives, and active abilities.

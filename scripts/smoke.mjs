@@ -34,6 +34,9 @@ check(/applySpeciesToPlayer/.test(main) && /useSpeciesAbility/.test(main), "spec
 check((formMastery.match(/id: "/g) || []).length >= 6, "form mastery catalog exists");
 check(/getFormMasteryRank/.test(formMastery) && /nextFormMasteryTarget/.test(formMastery), "form mastery rank helpers exist");
 check(/gainFormMastery/.test(main) && /showForms/.test(main), "form mastery gameplay and UI exist");
+check(/showStartScreen/.test(main) && /startNewGame/.test(main), "basic start and new game flow exists");
+check(/getInteractionHint/.test(main), "interaction hint exists");
+check(/No enemy in striking range/.test(main) && /No target for the blast/.test(main), "basic combat miss feedback exists");
 
 console.log("Smoke checks passed.");
 

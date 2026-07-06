@@ -438,7 +438,7 @@ addEventListener("gamepaddisconnected", (e) => {
   }
 });
 
-document.getElementById("newGameBtn").addEventListener("click", () => showCharacterCreator());
+document.getElementById("newGameBtn").addEventListener("click", startNewGame);
 document.getElementById("saveBtn").addEventListener("click", saveGame);
 document.getElementById("loadBtn").addEventListener("click", loadGame);
 document.getElementById("skillsBtn").addEventListener("click", showSkills);
@@ -448,7 +448,7 @@ document.getElementById("figurinesBtn").addEventListener("click", () => startFig
 document.getElementById("questBtn").addEventListener("click", showQuestLog);
 document.getElementById("blueprintsBtn").addEventListener("click", showExpansionBlueprints);
 
-showCharacterCreator();
+showStartScreen();
 requestAnimationFrame(loop);
 
 function loop(now) {
@@ -618,6 +618,19 @@ function interact() {
   log("No one is close enough.");
 }
 
+function getInteractionHint() {
+  const map = ensureMap(state.zone);
+  const nearNpc = activeNpcs(map).find((n) => dist(n, state.player) < 2);
+  if (nearNpc) return `Talk: ${nearNpc.name}`;
+  const nearEnemy = map.enemies.find((e) => e.alive && dist(e, state.player) < 2);
+  if (nearEnemy) return `Engage: ${nearEnemy.name}`;
+  const nearBreakable = map.destructibles.find((d) => d.hp > 0 && dist(d, state.player) < 2);
+  if (nearBreakable) return `Break: ${nearBreakable.kind}`;
+  const nearLoot = map.loot.find((l) => dist(l, state.player) < 1.4);
+  if (nearLoot) return `Pick up: ${nearLoot.item}`;
+  return "Explore";
+}
+
 function talk(npc) {
   sfx("talk");
   log(`${npc.name}: ${npc.text}`);
@@ -705,18 +718,27 @@ function applyBranchBonus() {
 
 function strike() {
   const target = nearestEnemy(1.8);
+  if (!target) {
+    log("No enemy in striking range.");
+    sfx("swing");
+    return;
+  }
   sfx("swing");
-  if (target) hitEnemy(target, 10 * forms[state.player.form].power);
+  hitEnemy(target, 10 * forms[state.player.form].power);
 }
 
 function blast() {
   const cost = getCurrentSpecies().id === "bioarc" ? 7 : 8;
   if (state.player.sp < cost) return log("Not enough spirit.");
+  const target = nearestEnemy(5);
+  const breakable = ensureMap(state.zone).destructibles.find((d) => d.hp > 0 && dist(d, state.player) < 4);
+  if (!target && !breakable) {
+    log("No target for the blast.");
+    return;
+  }
   state.player.sp -= cost;
   sfx("blast");
-  const target = nearestEnemy(5);
   if (target) hitEnemy(target, 16 * forms[state.player.form].power);
-  const breakable = ensureMap(state.zone).destructibles.find((d) => d.hp > 0 && dist(d, state.player) < 4);
   if (breakable) damageDestructible(breakable, state.player.skills.includes("blast") ? 3 : 2);
   completeObjective(4);
 }
@@ -1190,6 +1212,48 @@ function activeNpcs(map) {
     if (npc.role === "shop" && isNight() && state.zone !== "lake") return false;
     return true;
   });
+}
+
+function showStartScreen() {
+  const hasSave = Boolean(localStorage.getItem(SAVE_KEY));
+  openModal("DBH RPG", `<p>Continue an existing save or start fresh.</p>
+    <div class="grid">
+      <button class="choice" data-start="continue" ${hasSave ? "" : "disabled"}>Continue<br><span class="tiny">${hasSave ? "Load your saved fighter" : "No save found"}</span></button>
+      <button class="choice" data-start="new">New Game<br><span class="tiny">Reset the world and create a fighter</span></button>
+      <button class="choice" data-start="controls">Controls<br><span class="tiny">View keyboard and controller basics</span></button>
+    </div>`);
+  ui.modalBody.querySelectorAll("[data-start]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.start === "continue") {
+        loadGame();
+        ui.modal.close();
+      }
+      if (btn.dataset.start === "new") startNewGame();
+      if (btn.dataset.start === "controls") showControls();
+    });
+  });
+}
+
+function showControls() {
+  openModal("Controls", `<div class="grid">
+    <p>Move<br><span class="tiny">WASD, arrows, left stick, or D-pad</span></p>
+    <p>Interact<br><span class="tiny">Space, Enter, or A</span></p>
+    <p>Fight<br><span class="tiny">J/X strike, K/B blast, L/LB guard</span></p>
+    <p>Forms<br><span class="tiny">F/Y transforms, E/LS species ability</span></p>
+  </div>`);
+}
+
+function startNewGame() {
+  const fresh = makeWorld();
+  Object.assign(state, fresh);
+  state.rng = fresh.rng;
+  state.completed = fresh.completed;
+  applySpeciesToPlayer("terran");
+  ensureBlueprintFlags();
+  ensurePlayerCharacterDefaults();
+  ensureFormMasteryDefaults();
+  log("New game started.");
+  showCharacterCreator();
 }
 
 function showCharacterCreator() {
@@ -1711,8 +1775,8 @@ function updateHud() {
   ui.moneyText.textContent = `${p.money}c`;
   ensureBlueprintFlags();
   const activeBlueprint = expansionBlueprints.find((b) => b.cycle === state.flags.activeBlueprint) || expansionBlueprints[0];
-  ui.objectivePanel.innerHTML = `<h3>Objective ${state.activeObjective + 1}/${objectives.length}</h3><p>${objectives[state.activeObjective] || "Postgame complete"}</p><p>Branch: ${state.branch}. ${isNight() ? "Night routes active." : "Day routes active."}</p><p>Blueprint ${activeBlueprint.cycle}: ${completedBlueprintStages(activeBlueprint.cycle).length}/5 ${activeBlueprint.title}</p>`;
-  ui.actionPanel.innerHTML = `<h3>Actions</h3><p>Space/A interact. E/LS ${getCurrentSpecies().active.name}. J/X strike. K/B blast. F/Y form. M/LT forge. N/RT courier. R opens blueprints.</p><p>${techniques.map((t) => `${t.key}: ${t.name}${t.requires && !p.skills.includes(t.requires) ? " (locked)" : ""}`).join(" | ")}</p><p>Controller: ${gamepad.connected ? "connected" : "not connected"}. Weather effects: ${weatherSummary()}</p>`;
+  ui.objectivePanel.innerHTML = `<h3>Objective ${state.activeObjective + 1}/${objectives.length}</h3><p>${objectives[state.activeObjective] || "Postgame complete"}</p><p>Nearby: ${getInteractionHint()}</p><p>Branch: ${state.branch}. ${isNight() ? "Night routes active." : "Day routes active."}</p><p>Blueprint ${activeBlueprint.cycle}: ${completedBlueprintStages(activeBlueprint.cycle).length}/5 ${activeBlueprint.title}</p>`;
+  ui.actionPanel.innerHTML = `<h3>Actions</h3><p>Space/A interact. E/LS ${getCurrentSpecies().active.name}. J/X strike. K/B blast. L/LB guard. F/Y form.</p><p>${techniques.map((t) => `${t.key}: ${t.name}${t.requires && !p.skills.includes(t.requires) ? " (locked)" : ""}`).join(" | ")}</p><p>Controller: ${gamepad.connected ? "connected" : "not connected"}. Weather effects: ${weatherSummary()}</p>`;
   ui.log.innerHTML = `<h3>Log</h3>${state.log.slice(-7).map((l) => `<p>${escapeHtml(l)}</p>`).join("")}`;
 }
 

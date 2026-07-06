@@ -45,6 +45,7 @@ http://localhost:4173
 - Character creation with seven original species, origin, style, aura color, stats, XP growth, passives, and active abilities.
 - NPCs, shops, mentors, enemies, bosses, loot, destructibles, random encounters, and pickups.
 - Leveling, stats, skill points, skill tree, inventory, equipment, techniques, and transformations.
+- Transformation mastery with form ranks, drain scaling, species affinities, and a Forms screen.
 - Weather, day/night, branch choice, NPC availability, and 55-objective campaign track.
 - Three minigames: Figurine Tactics, Aura Forge, and Sky Courier.
 - Procedural sound effects and location/combat music.

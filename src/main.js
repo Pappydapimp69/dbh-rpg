@@ -1,5 +1,6 @@
 import { expansionBlueprints } from "./expansionBlueprints.js";
 import { baseStats, characterSpecies, getSpeciesById } from "./characterCreation.js";
+import { forms, getFormMasteryRank, nextFormMasteryTarget } from "./formMastery.js";
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -151,15 +152,6 @@ const objectives = [
   "Enter postgame sky rift",
   "Hunt legendary figurine spawns",
 ];
-
-const forms = {
-  Base: { drain: 0, color: "#62d6ff", power: 1 },
-  Flare: { drain: 5, color: "#ffd166", power: 1.35 },
-  Storm: { drain: 7, color: "#62d6ff", power: 1.55 },
-  "Iron Spirit": { drain: 4, color: "#dbe9ef", power: 1.2, guard: 1.6 },
-  "Solar Apex": { drain: 11, color: "#fff1a6", power: 2.1 },
-  "Eclipse Break": { drain: 13, color: "#b185ff", power: 2.35 },
-};
 
 const skillTree = [
   { id: "dash", name: "Flash Step", cost: 1, desc: "Dash farther and spend less spirit." },
@@ -358,6 +350,7 @@ function makeWorld(seed = Date.now() >>> 0) {
       skillPoints: 0,
       form: "Base",
       forms: ["Base"],
+      formMastery: { Base: 0 },
       skills: [],
       inventory: ["Rice Ball"],
       figurines: ["Crater Kid"],
@@ -449,6 +442,7 @@ document.getElementById("newGameBtn").addEventListener("click", () => showCharac
 document.getElementById("saveBtn").addEventListener("click", saveGame);
 document.getElementById("loadBtn").addEventListener("click", loadGame);
 document.getElementById("skillsBtn").addEventListener("click", showSkills);
+document.getElementById("formsBtn").addEventListener("click", showForms);
 document.getElementById("inventoryBtn").addEventListener("click", showInventory);
 document.getElementById("figurinesBtn").addEventListener("click", () => startFigurineBattle("Toma"));
 document.getElementById("questBtn").addEventListener("click", showQuestLog);
@@ -763,11 +757,13 @@ function hitEnemy(enemy, dmg) {
   const p = state.player;
   let finalDamage = dmg * weatherDamageModifier();
   if (getCurrentSpecies().id === "starforged" && p.hp / p.maxHp < 0.4) finalDamage *= 1.12;
+  finalDamage *= getSpeciesFormDamageMultiplier();
   if (p.speciesTimers.battleSurge > 0) {
     finalDamage *= 1.35;
     p.speciesTimers.battleSurge = 0;
   }
   enemy.hp -= Math.round(finalDamage);
+  gainFormMastery(enemy.boss ? 4 : 2, "hit");
   enemy.flash = 0.15;
   sfx("hit");
   if (enemy.hp <= 0) defeatEnemy(enemy);
@@ -795,6 +791,7 @@ function defeatEnemy(enemy) {
     unlockForm("Iron Spirit");
   }
   if (enemy.id === "engine") completeObjective(48);
+  gainFormMastery(enemy.boss ? 18 : 6, "victory");
   levelCheck();
 }
 
@@ -827,9 +824,11 @@ function updateEncounter(dt) {
   if (actionPressed("strike")) hitEnemy(e, 13 * forms[state.player.form].power);
   if (actionPressed("blast")) blast();
   if (actionPressed("guard")) guard();
+  drainForm(dt);
+  updateSpeciesPassives(dt);
   if (encounter.timer > 1.2 && e.alive) {
     encounter.timer = 0;
-    const guardBoost = (forms[state.player.form].guard || 1) * state.player.guardStat * (state.player.speciesTimers.rootguard > 0 ? 1.8 : 1);
+    const guardBoost = (forms[state.player.form].guard || 1) * state.player.guardStat * getSpeciesFormGuardMultiplier() * (state.player.speciesTimers.rootguard > 0 ? 1.8 : 1);
     const dmg = Math.max(1, Math.round(e.atk / guardBoost));
     state.player.hp -= dmg;
     sfx("hurt");
@@ -962,6 +961,8 @@ function updateFlightHazards(dt) {
 function unlockForm(name) {
   if (state.player.forms.includes(name)) return;
   state.player.forms.push(name);
+  ensureFormMasteryDefaults();
+  state.player.formMastery[name] ||= 0;
   log(`Unlocked ${name} transformation.`);
   sfx("transform");
   if (name === "Flare") completeObjective(22);
@@ -977,6 +978,7 @@ function cycleForm() {
 }
 
 function drainForm(dt) {
+  ensureFormMasteryDefaults();
   const form = forms[state.player.form];
   if (!form.drain) {
     state.player.sp = Math.min(state.player.maxSp, state.player.sp + dt * 6);
@@ -984,14 +986,85 @@ function drainForm(dt) {
   }
   if (state.player.speciesTimers.noFormDrain > 0) return;
   let mastery = state.player.skills.includes("form") ? 0.65 : 1;
-  if (getCurrentSpecies().id === "celestial") mastery *= 0.9;
+  mastery *= Math.max(0.62, 1 - getCurrentFormMasteryRank() * 0.08);
   if (getCurrentSpecies().id === "starforged" && state.player.form === "Flare") mastery *= 0.85;
+  mastery *= getSpeciesFormDrainMultiplier();
   state.player.sp -= form.drain * mastery * dt;
+  gainFormMastery(dt * (encounter ? 2.2 : 0.7), "active");
   if (state.player.sp <= 0) {
     state.player.sp = 0;
     state.player.form = "Base";
     log("Your transformation drops.");
   }
+}
+
+function gainFormMastery(amount, reason = "use") {
+  ensureFormMasteryDefaults();
+  if (state.player.form === "Base") return;
+  const species = getCurrentSpecies();
+  let multiplier = 1;
+  if (species.id === "starforged" && state.player.form === "Flare") multiplier += 0.25;
+  if (species.id === "bioarc" && state.player.form === "Storm") multiplier += 0.2;
+  if (species.id === "verdant" && state.player.form === "Iron Spirit") multiplier += 0.2;
+  if (species.id === "majinite" && state.player.form === "Eclipse Break") multiplier += 0.2;
+  if (species.id === "android") multiplier += 0.1;
+  if (species.id === "celestial") multiplier += 0.15;
+  const beforeRank = getCurrentFormMasteryRank();
+  state.player.formMastery[state.player.form] += Math.max(0, amount * multiplier);
+  const afterRank = getCurrentFormMasteryRank();
+  if (afterRank > beforeRank) {
+    log(`${state.player.form} mastery reached rank ${afterRank}.`);
+    sfx("level");
+  }
+}
+
+function getCurrentFormMasteryRank() {
+  ensureFormMasteryDefaults();
+  return getFormMasteryRank(state.player.formMastery[state.player.form] || 0);
+}
+
+function ensureFormMasteryDefaults() {
+  state.player.formMastery ||= {};
+  for (const formName of state.player.forms || ["Base"]) {
+    state.player.formMastery[formName] ||= 0;
+  }
+}
+
+function getSpeciesFormDrainMultiplier() {
+  const species = getCurrentSpecies().id;
+  const form = state.player.form;
+  if (species === "majinite" && form === "Eclipse Break") return 0.88;
+  if (species === "android") return 0.92;
+  if (species === "celestial") return 0.9;
+  return 1;
+}
+
+function getSpeciesFormDamageMultiplier() {
+  const species = getCurrentSpecies().id;
+  const form = state.player.form;
+  if (species === "starforged" && form === "Flare") return 1.08;
+  if (species === "bioarc" && form === "Storm") return 1.06;
+  if (species === "majinite" && form === "Eclipse Break") return 1.08;
+  return 1;
+}
+
+function getSpeciesFormGuardMultiplier() {
+  const species = getCurrentSpecies().id;
+  const form = state.player.form;
+  if (species === "verdant" && form === "Iron Spirit") return 1.15;
+  if (species === "android") return 1.08;
+  return 1;
+}
+
+function currentFormAffinitySummary() {
+  const species = getCurrentSpecies();
+  if (species.id === "starforged" && state.player.form === "Flare") return "Starforged Flare affinity";
+  if (species.id === "bioarc" && state.player.form === "Storm") return "Bio-Arc Storm affinity";
+  if (species.id === "verdant" && state.player.form === "Iron Spirit") return "Verdant Iron Spirit affinity";
+  if (species.id === "majinite" && state.player.form === "Eclipse Break") return "Majinite Eclipse affinity";
+  if (species.id === "android" && state.player.form !== "Base") return "Android reactor stability";
+  if (species.id === "celestial" && state.player.form !== "Base") return "Celestial form control";
+  return species.affinity;
 }
 
 function levelCheck() {
@@ -1061,6 +1134,8 @@ function ensurePlayerCharacterDefaults() {
   p.xpRate ||= getSpeciesById(p.speciesId).growth.xpRate;
   p.speciesCooldown ||= 0;
   p.speciesTimers ||= {};
+  p.formMastery ||= { Base: 0 };
+  for (const formName of p.forms || ["Base"]) p.formMastery[formName] ||= 0;
 }
 
 function completeObjective(index) {
@@ -1172,6 +1247,28 @@ function showSkills() {
       state.player.skills.push(skill.id);
       log(`Unlocked ${skill.name}.`);
       sfx("skill");
+      ui.modal.close();
+    });
+  });
+}
+
+function showForms() {
+  ensureFormMasteryDefaults();
+  openModal("Forms", `<p>${state.player.speciesName} affinity: ${currentFormAffinitySummary()}</p><div class="grid">
+    ${Object.values(forms).map((form) => {
+      const unlocked = state.player.forms.includes(form.name);
+      const xp = state.player.formMastery[form.name] || 0;
+      const rank = getFormMasteryRank(xp);
+      const next = nextFormMasteryTarget(xp);
+      const progress = rank >= 4 ? "Max rank" : `${Math.floor(xp)}/${next} mastery`;
+      return `<button class="choice" data-form-choice="${form.name}" ${unlocked ? "" : "disabled"} style="border-color:${form.color}">${form.name}${state.player.form === form.name ? " (active)" : ""}<br><span class="tiny">Rank ${rank}. ${progress}. Power x${form.power}. Drain ${form.drain}.<br>${unlocked ? form.perks[Math.min(rank, form.perks.length - 1)] : `Unlock: ${form.unlock}`}</span></button>`;
+    }).join("")}
+  </div>`);
+  ui.modalBody.querySelectorAll("[data-form-choice]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.player.form = btn.dataset.formChoice;
+      log(`Selected ${state.player.form}.`);
+      sfx("transform");
       ui.modal.close();
     });
   });
@@ -1610,7 +1707,7 @@ function updateHud() {
   ui.spBar.style.width = `${clamp((p.sp / p.maxSp) * 100, 0, 100)}%`;
   ui.xpBar.style.width = `${clamp((p.xp / xpToNextLevel()) * 100, 0, 100)}%`;
   ui.levelText.textContent = `Lv ${p.level} ${p.speciesName || "Terran"} ${p.style}`;
-  ui.formText.textContent = p.form;
+  ui.formText.textContent = `${p.form} R${getCurrentFormMasteryRank()}`;
   ui.moneyText.textContent = `${p.money}c`;
   ensureBlueprintFlags();
   const activeBlueprint = expansionBlueprints.find((b) => b.cycle === state.flags.activeBlueprint) || expansionBlueprints[0];

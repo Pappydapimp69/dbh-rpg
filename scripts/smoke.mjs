@@ -7,6 +7,7 @@ if (missing.length) fail(`Missing files: ${missing.join(", ")}`);
 const main = readFileSync("src/main.js", "utf8");
 const expansions = readFileSync("src/expansionBlueprints.js", "utf8");
 const characterCreation = readFileSync("src/characterCreation.js", "utf8");
+const formMastery = readFileSync("src/formMastery.js", "utf8");
 const blueprint = readFileSync("BLUEPRINT.md", "utf8");
 
 check(/class Rng/.test(main), "deterministic RNG class exists");
@@ -30,6 +31,9 @@ check(/growth:/.test(characterCreation) && /xpRate/.test(characterCreation), "sp
 check(/passives:/.test(characterCreation) && /active:/.test(characterCreation), "species passives and active abilities exist");
 check(/showCharacterCreator/.test(main) && /data-species/.test(main), "character creator species UI exists");
 check(/applySpeciesToPlayer/.test(main) && /useSpeciesAbility/.test(main), "species stats and active ability logic exists");
+check((formMastery.match(/id: "/g) || []).length >= 6, "form mastery catalog exists");
+check(/getFormMasteryRank/.test(formMastery) && /nextFormMasteryTarget/.test(formMastery), "form mastery rank helpers exist");
+check(/gainFormMastery/.test(main) && /showForms/.test(main), "form mastery gameplay and UI exist");
 
 console.log("Smoke checks passed.");
 

@@ -18,7 +18,6 @@ const ui = {
   levelText: document.getElementById("levelText"),
   formText: document.getElementById("formText"),
   moneyText: document.getElementById("moneyText"),
-  objectivePanel: document.getElementById("objectivePanel"),
   actionPanel: document.getElementById("actionPanel"),
   log: document.getElementById("log"),
   modal: document.getElementById("modal"),
@@ -2520,7 +2519,6 @@ function updateHud() {
   ui.formText.textContent = `${p.form} R${getCurrentFormMasteryRank()}`;
   ui.moneyText.textContent = `${p.money}c`;
   ensureRuntimeFlags();
-  ui.objectivePanel.innerHTML = `<h3>Objective ${state.activeObjective + 1}/${objectives.length}</h3><p>${objectives[state.activeObjective] || "Postgame complete"}</p><p>${questCompassLine()}</p><p>${openingArcLine()}</p><p>Nearby: ${getInteractionHint()}</p><p>Branch: ${state.branch}. ${isNight() ? "Night routes active." : "Day routes active."}</p><p>${finalRouteStatus()}</p>`;
   ui.actionPanel.innerHTML = `<h3>Actions</h3><p>Space/A interact. E/LS ${getCurrentSpecies().active.name}. J/X strike. K/B blast. L/LB guard. Shift/RT dodge. F/Y form.</p><p>${techniques.map((t) => `${t.key}: ${t.name}${t.requires && !p.skills.includes(t.requires) ? " (locked)" : ""}`).join(" | ")}</p><p>${combatHudLine()}</p><p>Controller: ${gamepad.connected ? "connected" : "not connected"}. Weather effects: ${weatherSummary()}</p>`;
   ui.log.innerHTML = `<h3>Log</h3>${state.log.slice(-7).map((l) => `<p>${escapeHtml(l)}</p>`).join("")}`;
 }

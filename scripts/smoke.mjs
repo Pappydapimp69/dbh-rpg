@@ -130,7 +130,7 @@ check(/Branch:/.test(main) && /Weather effects:/.test(main) && /guard or dodge/.
 check(/sx = Math\.floor\(camera\.x \/ TILE\)/.test(main) && /ex = sx \+ Math\.ceil\(innerWidth \/ TILE\) \+ 2/.test(main), "cycle 14 draw budget is closed");
 check(/if \(state\.maps\[id\]\) return state\.maps\[id\]/.test(main), "cycle 14 generated map cache is closed");
 check(/createOscillator/.test(main) && /function sfx/.test(main) && /function updateMusic/.test(main), "cycle 14 audio budget is closed");
-check(/function updateHud/.test(main) && /ui\.objectivePanel\.innerHTML/.test(main) && /ui\.actionPanel\.innerHTML/.test(main), "cycle 14 DOM budget is closed");
+check(/function updateHud/.test(main) && !/ui\.objectivePanel\.innerHTML/.test(main) && /ui\.actionPanel\.innerHTML/.test(main), "cycle 14 DOM budget is closed");
 check(Array.from({ length: 20 }, (_, i) => `## Cycle ${i + 1}:`).every((heading) => closureLog.includes(heading)), "cycle 20 production smoke sees all cycles closed");
 check(/Query Brain/.test(sliceContract) && /focused external research/.test(sliceContract) && /npm\.cmd run check/.test(sliceContract), "cycle 20 authoring loop is closed");
 check(/Data Boundaries/.test(sliceContract) && /src\/expansionBlueprints\.js`: internal agent backlog only/.test(sliceContract), "cycle 20 data boundaries are closed");

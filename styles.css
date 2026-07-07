@@ -144,7 +144,6 @@ textarea {
   overflow: auto;
 }
 
-#objectivePanel h3,
 #actionPanel h3,
 #log h3 {
   margin: 0 0 8px;
@@ -152,7 +151,6 @@ textarea {
   color: var(--gold);
 }
 
-#objectivePanel p,
 #actionPanel p,
 #log p {
   margin: 0 0 8px;

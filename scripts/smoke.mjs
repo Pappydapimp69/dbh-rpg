@@ -58,7 +58,7 @@ check(/inputMap\s*=\s*{[\s\S]*interact:[\s\S]*strike:[\s\S]*blast:[\s\S]*guard:[
 check(!/courier: \[/.test(main), "courier no longer consumes a gameplay input");
 check(/function actionPressed/.test(main) && /function techPressed/.test(main), "cycle 1 action vocabulary is centralized");
 check(/function handleModalInput/.test(main) && /gamepadPressed\("padB"\)/.test(main), "cycle 1 modal navigation is closed");
-check(/showControls/.test(main) && /Shift\/RT dodge/.test(main) && /Controller:/.test(main), "cycle 1 prompt cleanup is closed");
+check(/showControls/.test(main) && /Shift\/RT dodge/.test(main) && /Controller connected/.test(main), "cycle 1 prompt cleanup is closed");
 check(/z\.flight \? 190 : 128/.test(main) && /function updateFlightHazards/.test(main) && /Wind.*flight routes speed up/.test(main), "cycle 1 flight tuning is closed");
 check((characterCreation.match(/id: "/g) || []).length >= 7, "at least seven playable species exist");
 check(/growth:/.test(characterCreation) && /xpRate/.test(characterCreation), "species XP growth data exists");
@@ -123,14 +123,15 @@ check(/function updateMusic/.test(main) && /theme = encounter\?\.boss/.test(main
 check(/function weatherSfx/.test(main) && /sfx\(weatherSfx\(state\.weather\)\)/.test(main), "cycle 12 weather sound is closed");
 check(/audioSettings/.test(main) && /function showAudioSettings/.test(main) && /data-audio/.test(main), "cycle 12 volume future is closed");
 check(/musicGain/.test(main) && /sfxGain/.test(main) && /weatherGain/.test(main) && /applyAudioSettings/.test(main), "cycle 12 audio smoke is closed");
-check(/#hud[\s\S]*width: min\(460px/.test(readFileSync("styles.css", "utf8")) && /#panel[\s\S]*overflow: auto/.test(readFileSync("styles.css", "utf8")), "cycle 13 readable panels are closed");
+check(/#hud[\s\S]*width: min\(460px/.test(readFileSync("styles.css", "utf8")) && !/#panel/.test(readFileSync("styles.css", "utf8")), "cycle 13 readable panels are closed");
 check(/interact: \[" ", "Enter", "padA"\]/.test(main) && /strike: \["j", "padX"\]/.test(main), "cycle 13 input redundancy is closed");
 check(/handleModalInput/.test(main) && /focus\(\)/.test(main) && /click\(\)/.test(main), "cycle 13 modal focus is closed");
-check(/Branch:/.test(main) && /Weather effects:/.test(main) && /guard or dodge/.test(main), "cycle 13 color meaning is closed");
+check(/Branch:/.test(main) && /weatherSummary/.test(main) && /guard or dodge/.test(main), "cycle 13 color meaning is closed");
 check(/sx = Math\.floor\(camera\.x \/ TILE\)/.test(main) && /ex = sx \+ Math\.ceil\(innerWidth \/ TILE\) \+ 2/.test(main), "cycle 14 draw budget is closed");
 check(/if \(state\.maps\[id\]\) return state\.maps\[id\]/.test(main), "cycle 14 generated map cache is closed");
 check(/createOscillator/.test(main) && /function sfx/.test(main) && /function updateMusic/.test(main), "cycle 14 audio budget is closed");
-check(/function updateHud/.test(main) && !/ui\.objectivePanel\.innerHTML/.test(main) && /ui\.actionPanel\.innerHTML/.test(main), "cycle 14 DOM budget is closed");
+check(/function updateHud/.test(main) && !/ui\.objectivePanel\.innerHTML/.test(main) && !/ui\.actionPanel\.innerHTML/.test(main) && !/ui\.log\.innerHTML/.test(main), "cycle 14 DOM budget is closed");
+check(/actionHints/.test(html) && /function actionHintRows/.test(main) && /Start/.test(main) && /Shift/.test(main), "bottom-right action hints exist");
 check(Array.from({ length: 20 }, (_, i) => `## Cycle ${i + 1}:`).every((heading) => closureLog.includes(heading)), "cycle 20 production smoke sees all cycles closed");
 check(/Query Brain/.test(sliceContract) && /focused external research/.test(sliceContract) && /npm\.cmd run check/.test(sliceContract), "cycle 20 authoring loop is closed");
 check(/Data Boundaries/.test(sliceContract) && /src\/expansionBlueprints\.js`: internal agent backlog only/.test(sliceContract), "cycle 20 data boundaries are closed");

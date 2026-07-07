@@ -68,7 +68,7 @@ textarea {
 }
 
 #hud,
-#panel,
+#actionHints,
 #controls {
   position: absolute;
   border: 1px solid var(--line);
@@ -83,6 +83,41 @@ textarea {
   top: 14px;
   width: min(460px, calc(100vw - 28px));
   padding: 10px;
+}
+
+#actionHints {
+  right: 14px;
+  bottom: 76px;
+  width: min(260px, calc(100vw - 28px));
+  padding: 10px;
+}
+
+#actionHints h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--gold);
+}
+
+#actionHints p {
+  display: grid;
+  grid-template-columns: 42px 48px 1fr;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+#actionHints b,
+#actionHints span {
+  color: var(--ink);
+  font-size: 11px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .hud-row {
@@ -133,30 +168,6 @@ textarea {
 
 #xpBar {
   background: var(--gold);
-}
-
-#panel {
-  right: 14px;
-  top: 14px;
-  width: min(340px, calc(100vw - 28px));
-  max-height: calc(100vh - 92px);
-  padding: 12px;
-  overflow: auto;
-}
-
-#actionPanel h3,
-#log h3 {
-  margin: 0 0 8px;
-  font-size: 13px;
-  color: var(--gold);
-}
-
-#actionPanel p,
-#log p {
-  margin: 0 0 8px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.35;
 }
 
 #controls {
@@ -215,16 +226,14 @@ textarea {
 }
 
 @media (max-width: 760px) {
-  #panel {
-    top: auto;
-    right: 14px;
-    bottom: 76px;
-    max-height: 36vh;
-  }
-
   #controls {
     width: calc(100vw - 28px);
     overflow-x: auto;
     justify-content: flex-start;
+  }
+
+  #actionHints {
+    bottom: 128px;
+    width: min(260px, calc(100vw - 28px));
   }
 }

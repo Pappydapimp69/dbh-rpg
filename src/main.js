@@ -18,8 +18,7 @@ const ui = {
   levelText: document.getElementById("levelText"),
   formText: document.getElementById("formText"),
   moneyText: document.getElementById("moneyText"),
-  actionPanel: document.getElementById("actionPanel"),
-  log: document.getElementById("log"),
+  actionHints: document.getElementById("actionHints"),
   modal: document.getElementById("modal"),
   modalTitle: document.getElementById("modalTitle"),
   modalBody: document.getElementById("modalBody"),
@@ -2519,8 +2518,25 @@ function updateHud() {
   ui.formText.textContent = `${p.form} R${getCurrentFormMasteryRank()}`;
   ui.moneyText.textContent = `${p.money}c`;
   ensureRuntimeFlags();
-  ui.actionPanel.innerHTML = `<h3>Actions</h3><p>Space/A interact. E/LS ${getCurrentSpecies().active.name}. J/X strike. K/B blast. L/LB guard. Shift/RT dodge. F/Y form.</p><p>${techniques.map((t) => `${t.key}: ${t.name}${t.requires && !p.skills.includes(t.requires) ? " (locked)" : ""}`).join(" | ")}</p><p>${combatHudLine()}</p><p>Controller: ${gamepad.connected ? "connected" : "not connected"}. Weather effects: ${weatherSummary()}</p>`;
-  ui.log.innerHTML = `<h3>Log</h3>${state.log.slice(-7).map((l) => `<p>${escapeHtml(l)}</p>`).join("")}`;
+  ui.actionHints.innerHTML = `<h3>Actions</h3>${actionHintRows().map((row) => `<p><b>${row.pad}</b><span>${row.key}</span>${row.label}</p>`).join("")}`;
+}
+
+function actionHintRows() {
+  const species = getCurrentSpecies().active.name;
+  const rows = [
+    { pad: "A", key: "Space", label: getInteractionHint() },
+    { pad: "X", key: "J", label: "Strike" },
+    { pad: "B", key: "K", label: "Blast" },
+    { pad: "LB", key: "L", label: "Guard" },
+    { pad: "RT", key: "Shift", label: "Dodge" },
+    { pad: "Y", key: "F", label: "Transform" },
+    { pad: "LS", key: "E", label: species },
+    { pad: "Start", key: "Q", label: "Quests" },
+  ];
+  return rows.filter((row) => {
+    if (row.label === "Transform") return state.player.forms.length > 1;
+    return true;
+  });
 }
 
 function combatHudLine() {

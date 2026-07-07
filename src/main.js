@@ -165,17 +165,48 @@ const objectiveTargets = {
   10: { zone: "barrens", x: 36, y: 18, label: "Rockslide gate", action: "Break the rockslide with blasts." },
   11: { zone: "barrens", x: 15, y: 25, label: "Kess", action: "Talk to the stranded scavenger." },
   12: { zone: "barrens", x: 38, y: 7, label: "Rare training capsule", action: "Pick up the training cache." },
+  13: { zone: "barrens", x: 30, y: 11, label: "Barrens sparring drill", action: "Defeat a Dust Bandit sparring target." },
+  14: { zone: "barrens", x: 22, y: 22, label: "Buried training bell", action: "Search the inner barrens for the buried bell." },
   15: { zone: "barrens", x: 43, y: 18, label: "Ravik", action: "Defeat Ravik the Glass Fist." },
+  16: { zone: "metro", x: 39, y: 16, label: "Metro return gate", action: "Return to Metro Crater through the western route." },
+  17: { zone: "lake", x: 18, y: 18, label: "Faction contact", action: "Choose a faction contact when the lake route opens." },
   18: { zone: "forest", x: 2, y: 17, label: "Green Crown trail", action: "Travel through Dust Barrens to the forest." },
+  19: { zone: "forest", x: 25, y: 16, label: "Storm watch", action: "Keep moving until dangerous weather rolls in." },
+  20: { zone: "forest", x: 31, y: 25, label: "Night approach", action: "Wait for night or learn Quiet Pulse routes." },
   21: { zone: "forest", x: 31, y: 25, label: "Hidden mentor", action: "Find Vey at night or with Quiet Pulse." },
-  24: { zone: "forest", x: 38, y: 11, label: "Mara Coil", action: "Defeat Mara Coil." },
+  22: { zone: "forest", x: 38, y: 11, label: "Flare Form lead", action: "Pressure Mara Coil to unlock Flare." },
+  23: { zone: "forest", x: 38, y: 11, label: "Mara Coil", action: "Defeat Mara Coil." },
+  24: { zone: "lake", x: 18, y: 18, label: "Mirror Lake convoy", action: "Reach the convoy choice at Mirror Lake." },
+  25: { zone: "lake", x: 22, y: 20, label: "Lake shop district", action: "Talk to the Lake Cook and restock." },
+  26: { zone: "lake", x: 22, y: 20, label: "Fishing-focus drill", action: "Use Aura Forge as the focus drill." },
+  27: { zone: "lake", x: 28, y: 16, label: "Shrine seal cache", action: "Gather the lake shrine seal." },
   28: { zone: "lake", x: 40, y: 4, label: "Flight launch", action: "Reach Mirror Lake's launch route." },
+  29: { zone: "flight", x: 60, y: 12, label: "Sky route crossing", action: "Cross the sky route while avoiding storm mines." },
+  30: { zone: "flight", x: 34, y: 8, label: "Sky Raider", action: "Chase and defeat the Sky Raider." },
   31: { zone: "plateau", x: 2, y: 14, label: "Thunder Plateau", action: "Complete the sky route." },
+  32: { zone: "plateau", x: 18, y: 14, label: "Lightning mentor", action: "Train with Rin during harsh weather." },
   33: { zone: "plateau", x: 25, y: 11, label: "Storm Seal", action: "Recover the Storm Seal." },
+  34: { zone: "plateau", x: 34, y: 20, label: "Thunder Warden", action: "Defeat the Thunder Warden." },
+  35: { zone: "lake", x: 18, y: 18, label: "Route choice", action: "Return to faction contacts and choose a path." },
+  36: { zone: "lake", x: 18, y: 18, label: "Tournament bracket", action: "Use your faction lead to enter the bracket." },
+  37: { zone: "lake", x: 18, y: 18, label: "Rigged match lead", action: "Follow faction clues around Mirror Lake." },
+  38: { zone: "badlands", x: 39, y: 12, label: "Forbidden scroll", action: "Recover the forbidden scroll in Ashen Badlands." },
+  39: { zone: "plateau", x: 34, y: 20, label: "Iron Spirit trial", action: "Break the Warden's pressure and unlock Iron Spirit." },
   40: { zone: "badlands", x: 2, y: 22, label: "Ashen Badlands", action: "Push beyond Thunder Plateau." },
+  41: { zone: "badlands", x: 28, y: 17, label: "Null arena", action: "Find the Null Champion arena." },
+  42: { zone: "badlands", x: 28, y: 17, label: "Null Champion", action: "Defeat the Null Champion without leaning on forms." },
+  43: { zone: "badlands", x: 33, y: 24, label: "Mentor gauntlet", action: "Clear the advanced sparring gauntlet." },
+  44: { zone: "plateau", x: 43, y: 25, label: "Sky Monastery route", action: "Unlock the monastery path beyond the plateau." },
+  45: { zone: "plateau", x: 18, y: 14, label: "Mentor trials", action: "Pass three mentor trials." },
+  46: { zone: "badlands", x: 39, y: 12, label: "Eclipse choice", action: "Decide whether to seal or use Eclipse technique." },
   47: { zone: "citadel", x: 2, y: 16, label: "Moonfall Citadel", action: "Enter the final route." },
+  48: { zone: "citadel", x: 28, y: 20, label: "Crown Engine", action: "Infiltrate and reach the citadel core." },
   49: { zone: "citadel", x: 28, y: 20, label: "Crown Engine", action: "Defeat the Crown Engine." },
+  50: { zone: "citadel", x: 31, y: 13, label: "Final route seal", action: "Resolve your faction reputation route." },
+  51: { zone: "citadel", x: 31, y: 13, label: "Eclipse Heir", action: "Defeat the Eclipse Heir." },
   52: { zone: "citadel", x: 31, y: 13, label: "Eclipse Heir", action: "Face the branch rival." },
+  53: { zone: "citadel", x: 35, y: 24, label: "Sky rift", action: "Enter the postgame sky rift." },
+  54: { zone: "citadel", x: 35, y: 24, label: "Legendary rift trials", action: "Clear the legendary rift trials." },
 };
 
 const codex = {
@@ -742,10 +773,48 @@ function currentQuestTarget() {
   };
 }
 
+function currentQuestWaypoint() {
+  const target = currentQuestTarget();
+  if (!target || target.zone === state.zone) return target;
+  const nextZone = nextZoneToward(target.zone);
+  const exit = zones[state.zone].exits.find((entry) => entry.to === nextZone) || zones[state.zone].exits[0];
+  if (!exit) return target;
+  return {
+    ...target,
+    zone: state.zone,
+    x: exit.x,
+    y: exit.y,
+    label: `Route to ${zones[target.zone]?.name || target.zone}`,
+    action: `Take the ${zones[nextZone]?.name || nextZone} route toward ${target.label}.`,
+    finalTarget: target,
+  };
+}
+
+function nextZoneToward(targetZone) {
+  if (targetZone === state.zone) return state.zone;
+  const queue = [{ zone: state.zone, path: [] }];
+  const seen = new Set([state.zone]);
+  while (queue.length) {
+    const current = queue.shift();
+    for (const exit of zones[current.zone].exits || []) {
+      if (seen.has(exit.to)) continue;
+      const path = [...current.path, exit.to];
+      if (exit.to === targetZone) return path[0];
+      seen.add(exit.to);
+      queue.push({ zone: exit.to, path });
+    }
+  }
+  return zones[state.zone].exits[0]?.to || state.zone;
+}
+
 function questCompassLine() {
   const target = currentQuestTarget();
+  const waypoint = currentQuestWaypoint();
   const arc = currentQuestArc();
-  if (target.zone !== state.zone) return `Compass: ${target.label} in ${zones[target.zone]?.name || target.zone}. ${target.action}`;
+  if (target.zone !== state.zone) {
+    const steps = Math.round(Math.hypot(waypoint.x - state.player.x, waypoint.y - state.player.y));
+    return `Compass: ${waypoint.label}, ${steps} tile${steps === 1 ? "" : "s"} away. ${waypoint.action} Arc: ${arc.name}.`;
+  }
   const steps = Math.round(Math.hypot(target.x - state.player.x, target.y - state.player.y));
   return `Compass: ${target.label}, ${steps} tile${steps === 1 ? "" : "s"} away. ${target.action} Arc: ${arc.name}.`;
 }
@@ -1943,12 +2012,19 @@ function showQuestLog() {
   const done = [...state.completed].sort((a, b) => a - b);
   const next = objectives.slice(state.activeObjective, state.activeObjective + 8);
   const currentArc = currentQuestArc();
+  const waypoint = currentQuestWaypoint();
   openModal("Quest Log", `<p>Branch: ${state.branch}. Completed ${done.length}/${objectives.length} objectives.</p>
     <p>${questCompassLine()}</p>
+    <p class="tiny">Next action: ${waypoint.action}</p>
     <p>${finalRouteStatus()}</p>
     <h3>${currentArc.name}</h3>
     <p class="tiny">${currentArc.summary}</p>
-    ${next.map((o, i) => `<p>${state.activeObjective + i + 1}. ${o}</p>`).join("")}
+    ${next.map((o, i) => {
+      const index = state.activeObjective + i;
+      const target = objectiveTargets[index];
+      const detail = target ? `${zones[target.zone]?.name || target.zone}: ${target.action}` : currentArc.summary;
+      return `<p>${index + 1}. ${o}<br><span class="tiny">${detail}</span></p>`;
+    }).join("")}
     <h3>Campaign Arcs</h3>
     <div class="grid">
       ${questArcs.map((arc) => {
@@ -2301,7 +2377,8 @@ function drawOpeningMarker() {
 }
 
 function drawQuestCompass() {
-  const target = currentQuestTarget();
+  if (openingArcTarget()) return;
+  const target = currentQuestWaypoint();
   if (!target || target.zone !== state.zone) return;
   const sx = target.x * TILE - camera.x;
   const sy = target.y * TILE - camera.y;
@@ -2328,6 +2405,15 @@ function drawQuestCompass() {
   ctx.closePath();
   ctx.fill();
   ctx.restore();
+  if (target.finalTarget) {
+    ctx.fillStyle = "rgba(0,0,0,0.52)";
+    ctx.fillRect(x - 76, y + 12, 152, 18);
+    ctx.fillStyle = "#f4f7fb";
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`toward ${target.finalTarget.label}`, x, y + 25);
+    ctx.textAlign = "left";
+  }
   label(target.label, x, y - 16);
 }
 

@@ -34,8 +34,7 @@ http://localhost:4173
 - Transform: `F`
 - Techniques: `1`, `2`, `3`, `4`
 - Aura Forge minigame: `M`
-- Sky Courier minigame: `N`
-- Controller actions: `A` interact/confirm, `X` strike, `B` blast, `Y` transform, `LB/RB/Back/RS` techniques, `LT` Aura Forge, `RT` Sky Courier, `Start` quest log
+- Controller actions: `A` interact/confirm, `X` strike, `B` blast, `Y` transform, `LB/RB/Back/RS` techniques, `LT` Aura Forge, `RT` dodge, `Start` quest log
 
 ## Built Features
 
@@ -48,10 +47,11 @@ http://localhost:4173
 - Leveling, stats, skill points, skill tree, inventory, equipment, techniques, and transformations.
 - Transformation mastery with form ranks, drain scaling, species affinities, and a Forms screen.
 - Weather, day/night, branch choice, NPC availability, and 55-objective campaign track.
-- Three minigames: Figurine Tactics, Aura Forge, and Sky Courier.
+- Focused side activity: Aura Forge for aura training and equipment upgrades.
+- Removed standalone collectible tactics and courier minigames so the prototype stays focused on quests, training, combat, forms, and traversal.
 - Procedural sound effects and location/combat music.
 - Deterministic saved RNG state through `{ seed, count }`.
-- 20 structured expansion blueprints, each split into 5 in-game stages.
+- Internal expansion blueprints for development planning, kept out of gameplay.
 
 ## Validation
 

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check": "node scripts/check.mjs",
     "smoke": "node scripts/smoke.mjs",
     "start": "python -m http.server 4173"
   }

@@ -1,6 +1,6 @@
 # Iteration Blueprints
 
-This file records the 20 autonomous expansion cycles requested after the initial DBH RPG build. Each cycle is a new blueprint split into 5 stages. The matching structured data lives in `src/expansionBlueprints.js` so the game can surface the same plan in the browser.
+This file records the 20 autonomous expansion cycles requested after the initial DBH RPG build. Each cycle is a development blueprint split into 5 stages. The matching structured data lives in `src/expansionBlueprints.js` for agent planning and validation only; blueprints are not gameplay content and should not appear in the player UI, save data, rewards, or controls.
 
 ## Workflow Contract
 

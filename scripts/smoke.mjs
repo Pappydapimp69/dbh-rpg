@@ -84,7 +84,9 @@ check(/combatHudLine/.test(main) && /guard or dodge/.test(main), "combat readabi
 check(/const questArcs = \[/.test(main) && (main.match(/summary: "/g) || []).length >= 6, "quest arcs exist");
 check(/const objectiveTargets = {/.test(main) && /Dust Barrens gate/.test(main), "objective target metadata exists");
 check(/currentQuestTarget/.test(main) && /questCompassLine/.test(main), "quest compass resolver exists");
+check(/currentQuestWaypoint/.test(main) && /nextZoneToward/.test(main) && /Route to/.test(main), "quest compass routes across zones");
 check(/drawQuestCompass/.test(main) && /drawCompassRing/.test(main), "quest compass visuals exist");
+check(/Next action:/.test(main) && /toward \$\{target\.finalTarget\.label\}/.test(main), "quest compass action copy exists");
 check(/Campaign Arcs/.test(main) && /currentQuestArc/.test(main), "quest log groups campaign arcs");
 check(/Branch: \$\{state\.branch\}/.test(main) && /function chooseBranch/.test(main) && /branchBonusApplied/.test(main), "cycle 3 branch echoes are closed");
 check(/Hidden mentor/.test(main) && /activeNpcs/.test(main) && /role === "hidden"/.test(main), "cycle 3 hidden leads are closed");

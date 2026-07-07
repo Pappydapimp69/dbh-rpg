@@ -41,6 +41,18 @@ button:focus-visible {
   outline: none;
 }
 
+textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.28);
+  font: 12px ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
 #game-shell {
   position: relative;
   width: 100vw;

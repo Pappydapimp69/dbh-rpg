@@ -68,7 +68,7 @@ textarea {
 }
 
 #hud,
-#actionHints,
+#actionBar,
 #controls {
   position: absolute;
   border: 1px solid var(--line);
@@ -85,39 +85,76 @@ textarea {
   padding: 10px;
 }
 
-#actionHints {
+#actionBar {
   right: 14px;
   bottom: 76px;
-  width: min(260px, calc(100vw - 28px));
+  width: min(332px, calc(100vw - 28px));
   padding: 10px;
 }
 
-#actionHints h3 {
-  margin: 0 0 8px;
+#actionBar h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  grid-column: 1 / -1;
+  margin: 0 0 3px;
   font-size: 13px;
   color: var(--gold);
 }
 
-#actionHints p {
-  display: grid;
-  grid-template-columns: 42px 48px 1fr;
-  gap: 8px;
-  align-items: center;
-  margin: 0 0 6px;
+#actionBar h3 span {
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.25;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
-#actionHints b,
-#actionHints span {
+#actionBar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(58px, 1fr));
+  gap: 7px;
+}
+
+.action-slot {
+  display: grid;
+  grid-template-rows: 28px 1fr;
+  gap: 5px;
+  align-items: center;
+  justify-items: center;
+  min-height: 64px;
+  margin: 0;
+  padding: 7px 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.1;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.action-slot b {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  height: 26px;
   color: var(--ink);
   font-size: 11px;
   text-align: center;
   border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 2px 4px;
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0 6px;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.22);
+}
+
+.action-slot span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.action-slot.locked {
+  opacity: 0.42;
 }
 
 .hud-row {
@@ -232,8 +269,9 @@ textarea {
     justify-content: flex-start;
   }
 
-  #actionHints {
+  #actionBar {
     bottom: 128px;
-    width: min(260px, calc(100vw - 28px));
+    width: min(332px, calc(100vw - 28px));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

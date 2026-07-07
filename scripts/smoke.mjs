@@ -131,7 +131,7 @@ check(/sx = Math\.floor\(camera\.x \/ TILE\)/.test(main) && /ex = sx \+ Math\.ce
 check(/if \(state\.maps\[id\]\) return state\.maps\[id\]/.test(main), "cycle 14 generated map cache is closed");
 check(/createOscillator/.test(main) && /function sfx/.test(main) && /function updateMusic/.test(main), "cycle 14 audio budget is closed");
 check(/function updateHud/.test(main) && !/ui\.objectivePanel\.innerHTML/.test(main) && !/ui\.actionPanel\.innerHTML/.test(main) && !/ui\.log\.innerHTML/.test(main), "cycle 14 DOM budget is closed");
-check(/actionHints/.test(html) && /function actionHintRows/.test(main) && /Start/.test(main) && /Shift/.test(main), "bottom-right action hints exist");
+check(/actionBar/.test(html) && /function actionSlots/.test(main) && /activeInput/.test(main) && /Controller/.test(main) && /Keyboard/.test(main), "bottom-right action bar adapts to current input");
 check(Array.from({ length: 20 }, (_, i) => `## Cycle ${i + 1}:`).every((heading) => closureLog.includes(heading)), "cycle 20 production smoke sees all cycles closed");
 check(/Query Brain/.test(sliceContract) && /focused external research/.test(sliceContract) && /npm\.cmd run check/.test(sliceContract), "cycle 20 authoring loop is closed");
 check(/Data Boundaries/.test(sliceContract) && /src\/expansionBlueprints\.js`: internal agent backlog only/.test(sliceContract), "cycle 20 data boundaries are closed");

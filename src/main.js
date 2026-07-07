@@ -18,7 +18,7 @@ const ui = {
   levelText: document.getElementById("levelText"),
   formText: document.getElementById("formText"),
   moneyText: document.getElementById("moneyText"),
-  actionHints: document.getElementById("actionHints"),
+  actionBar: document.getElementById("actionBar"),
   modal: document.getElementById("modal"),
   modalTitle: document.getElementById("modalTitle"),
   modalBody: document.getElementById("modalBody"),
@@ -29,6 +29,7 @@ const TILE = 32;
 const SAVE_KEY = "dbh-rpg-save-v1";
 const keys = new Set();
 const pressed = new Set();
+let activeInput = "keyboard";
 const gamepad = {
   index: null,
   previous: new Set(),
@@ -551,6 +552,7 @@ resize();
 
 addEventListener("keydown", (e) => {
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
+  setActiveInput("keyboard");
   if (!keys.has(e.key)) pressed.add(e.key);
   keys.add(e.key);
   unlockAudio();
@@ -616,14 +618,25 @@ function pollGamepad() {
   gamepad.connected = true;
   gamepad.name = pad.id;
   const names = ["padA", "padB", "padX", "padY", "padLB", "padRB", "padLT", "padRT", "padBack", "padStart", "padLS", "padRS", "padUp", "padDown", "padLeft", "padRight"];
+  let controllerInput = false;
   pad.buttons.forEach((button, index) => {
-    if (button.pressed && names[index]) gamepad.current.add(names[index]);
+    if (button.pressed && names[index]) {
+      gamepad.current.add(names[index]);
+      if (!gamepad.previous.has(names[index])) controllerInput = true;
+    }
   });
   const dead = 0.22;
   const lx = pad.axes[0] || 0;
   const ly = pad.axes[1] || 0;
   gamepad.lx = Math.abs(lx) > dead ? lx : 0;
   gamepad.ly = Math.abs(ly) > dead ? ly : 0;
+  if (controllerInput || gamepad.lx || gamepad.ly) setActiveInput("controller");
+}
+
+function setActiveInput(mode) {
+  if (activeInput === mode) return;
+  activeInput = mode;
+  updateHud();
 }
 
 function update(dt) {
@@ -2518,25 +2531,30 @@ function updateHud() {
   ui.formText.textContent = `${p.form} R${getCurrentFormMasteryRank()}`;
   ui.moneyText.textContent = `${p.money}c`;
   ensureRuntimeFlags();
-  ui.actionHints.innerHTML = `<h3>Actions</h3>${actionHintRows().map((row) => `<p><b>${row.pad}</b><span>${row.key}</span>${row.label}</p>`).join("")}`;
+  const inputLabel = activeInput === "controller" ? "Controller" : "Keyboard";
+  ui.actionBar.dataset.input = activeInput;
+  ui.actionBar.innerHTML = `<h3>Actions <span>${inputLabel}</span></h3>${actionSlots().map(actionSlotMarkup).join("")}`;
 }
 
-function actionHintRows() {
+function actionSlots() {
   const species = getCurrentSpecies().active.name;
   const rows = [
-    { pad: "A", key: "Space", label: getInteractionHint() },
-    { pad: "X", key: "J", label: "Strike" },
-    { pad: "B", key: "K", label: "Blast" },
-    { pad: "LB", key: "L", label: "Guard" },
-    { pad: "RT", key: "Shift", label: "Dodge" },
-    { pad: "Y", key: "F", label: "Transform" },
-    { pad: "LS", key: "E", label: species },
-    { pad: "Start", key: "Q", label: "Quests" },
+    { pad: "A", key: "Space", label: getInteractionHint(), enabled: true },
+    { pad: "X", key: "J", label: "Strike", enabled: true },
+    { pad: "B", key: "K", label: "Blast", enabled: true },
+    { pad: "LB", key: "L", label: "Guard", enabled: true },
+    { pad: "RT", key: "Shift", label: "Dodge", enabled: true },
+    { pad: "Y", key: "F", label: "Transform", enabled: state.player.forms.length > 1 },
+    { pad: "LS", key: "E", label: species, enabled: true },
+    { pad: "Start", key: "Q", label: "Quests", enabled: true },
   ];
-  return rows.filter((row) => {
-    if (row.label === "Transform") return state.player.forms.length > 1;
-    return true;
-  });
+  return rows;
+}
+
+function actionSlotMarkup(slot) {
+  const control = activeInput === "controller" ? slot.pad : slot.key;
+  const stateClass = slot.enabled ? "" : " locked";
+  return `<p class="action-slot${stateClass}" aria-label="${slot.label}"><b>${control}</b><span>${slot.label}</span></p>`;
 }
 
 function combatHudLine() {
